@@ -870,6 +870,10 @@
         st = vt.getSettings();
       }
       try { window.VS.LightMeter && window.VS.LightMeter.start(els.video, vt); } catch (e) {}
+      try {   // v0.49 Phase 1: after the light meter's first pass, test frame-rate/exposure controls in the background; keeps one only if real fps rises
+        const cc = window.VS.CameraControl, myStream = stream;
+        if (cc) setTimeout(() => { if (stream === myStream && running) cc.start({ track: vt, video: els.video, canRun: () => stream === myStream && running && !((recorder && recorder.state !== 'inactive') || liveActive) }); }, 2500);
+      } catch (e) {}
       window.__camFps = st.frameRate ? Math.round(st.frameRate * 10) / 10 : null;
       window.__camSettings = (st.width || '?') + 'x' + (st.height || '?') + ' @' + (st.frameRate || '?') + ' fps';
     } catch (e) {}
@@ -993,6 +997,7 @@
     resetSegCache();
     if (recorder && recorder.state !== 'inactive') stopRecording();
     if (liveActive) stopLiveStream();
+    try { window.VS.CameraControl && window.VS.CameraControl.stop(); } catch (e) {}
     if (stream) stream.getTracks().forEach(t => t.stop());
     // Screen shares are their own independent capture, not part of `stream`
     // above — stopping the camera without stopping these would leave the
@@ -1290,7 +1295,9 @@
   /** Studio Check (Phase 0): pauses the live picture, measures camera controls + model speed, restores everything. */
   window.VS.studioCheckRun = async function (progress) {
     if (!running) throw new Error('Start the camera first, then run Studio Check.');
-    const V = window.VS; checkPaused = true; tuningNow = true;
+    const V = window.VS; const camTrack = stream && stream.getVideoTracks()[0];
+    try { if (V.CameraControl) await V.CameraControl.release(camTrack); } catch (e) { /* camera control is optional */ }   // v0.49: the check must measure the true automatic camera
+    checkPaused = true; tuningNow = true;
     try {
       const sum = await V.studioCheck.run({
         video: els.video, track: stream && stream.getVideoTracks()[0], progress,
@@ -1299,7 +1306,13 @@
       });
       window.__studioCheck = sum; try { localStorage.setItem('vs_studio_check', JSON.stringify(sum).slice(0, 20000)); } catch (e) { /* storage optional */ }
       return sum;
-    } finally { checkPaused = false; tuningNow = false; try { videoNativeW = els.video.videoWidth || videoNativeW; videoNativeH = els.video.videoHeight || videoNativeH; } catch (e) { /* ignore */ } }
+    } finally {
+      checkPaused = false; tuningNow = false; try { videoNativeW = els.video.videoWidth || videoNativeW; videoNativeH = els.video.videoHeight || videoNativeH; } catch (e) { /* ignore */ }
+      try {   // v0.49: Studio Check puts the camera back on automatic; run the camera-control test again so a kept setting returns
+        const cc = V.CameraControl, myStream = stream;
+        if (cc && camTrack && running) setTimeout(() => { if (stream === myStream && running) cc.start({ track: camTrack, video: els.video, canRun: () => stream === myStream && running && !((recorder && recorder.state !== 'inactive') || liveActive) }); }, 1500);
+      } catch (e) { /* optional */ }
+    }
   };
   let batteryRef = null;
   try { if (navigator.getBattery) navigator.getBattery().then((b) => { batteryRef = b; }).catch(() => {}); } catch (e) {}

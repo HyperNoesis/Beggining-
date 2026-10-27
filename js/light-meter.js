@@ -16,6 +16,7 @@
     return s / (d.length / 4);
   }
   async function nudge(track, luma) {
+    const CC = VS.CameraControl; if (CC && (CC.testing() || CC.holdsManual())) return false;   // v0.49: do not fight the camera-control test or its manual exposure
     const caps = track.getCapabilities ? track.getCapabilities() : {};
     const ec = caps.exposureCompensation; if (!ec) return false;
     const target = luma < 85 ? Math.min(ec.max, comp + (ec.step || 0.5) * 2) : luma > 175 ? Math.max(ec.min, comp - (ec.step || 0.5)) : comp;
@@ -37,6 +38,7 @@
         try {
           if (!video || video.paused || video.readyState < 2) return;
           const l = measure(video); if (l == null) return;
+          try { VS.CameraControl && VS.CameraControl.feedLuma(l); } catch (e) {}
           const level = l < 85 ? 'dim' : l > 175 ? 'bright' : 'ok';
           const applied = track ? await nudge(track, l) : false;
           state = { level, luma: Math.round(l), comp, applied: state.applied || applied };

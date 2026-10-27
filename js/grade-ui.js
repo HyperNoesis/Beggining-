@@ -14,7 +14,8 @@
   function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
   const current = () => (st.id === 'photo' ? st.photo : GC().GRADES.find((g) => g.id === st.id)) || GC().GRADES[0];
   function resolved() { return GC().resolve(current(), st.strength); }
-  function push() { const r = resolved(); if (window.VS.rendererSend) window.VS.rendererSend({ type: 'setGrade', state: { assistB: st.assist ? assistRes.bright : 1, assistTint: st.assist ? assistRes.tint : null, lut: lut, lutAmount: st.lutAmt, filter: r.filter, tint: r.tint, skin: st.skin, auto: st.auto } }); }
+  function camGain() { try { const CC = window.VS.CameraControl; return CC ? CC.gain() : 1; } catch (e) { return 1; } }   // v0.49: software brightening that makes up for a shorter camera exposure (auto-assist already sets brightness itself)
+  function push() { const r = resolved(); if (window.VS.rendererSend) window.VS.rendererSend({ type: 'setGrade', state: { assistB: st.assist ? assistRes.bright : camGain(), assistTint: st.assist ? assistRes.tint : null, lut: lut, lutAmount: st.lutAmt, filter: r.filter, tint: r.tint, skin: st.skin, auto: st.auto } }); }
 
   function onBox(box) { // box in crop space; convert to source space with the crop that is in use now
     const fa = window.VS.frameApi; if (!fa || !st.auto) return;
@@ -82,7 +83,7 @@
     try { const o = JSON.parse(localStorage.getItem('vs_lut') || 'null'); if (o) { lut = GC().lutFromB64(o); if (lut) lutSay('Your saved LUT "' + (lut.title || 'LUT') + '" is on.'); } } catch (e) {}
     if (assist) assist.checked = st.assist; if (lutAmt) lutAmt.value = Math.round(st.lutAmt * 100); if (st.assist) setAssist(true);
     mark(); push(); if (st.auto) setAuto(true);
-    setInterval(() => { if (st.id !== 'none' || st.skin > 0 || st.auto || st.assist || lut) push(); }, 1500);   // the pipeline may start after this page loads
+    setInterval(() => { if (st.id !== 'none' || st.skin > 0 || st.auto || st.assist || lut || camGain() !== 1) push(); }, 1500);   // the pipeline may start after this page loads
   }
   /** Used by one-tap Looks: set a preset grade by id (or null = Natural) and return the previous setting so it can be undone. */
   function setPreset(id, strength) { const prev = { id: st.id, strength: st.strength }; st.id = id || 'none'; if (strength != null) st.strength = strength; save(); push(); try { const l = document.getElementById('gradeList'); if (l) l.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === st.id))); const sr = document.getElementById('gradeStrength'); if (sr) sr.value = Math.round(st.strength * 100); } catch (e) {} return prev; }

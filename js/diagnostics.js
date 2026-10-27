@@ -38,7 +38,7 @@
     const st = (typeof window.VS.diagState === 'function') ? (window.VS.diagState() || {}) : {};
     const out = {
       time: new Date().toISOString(),
-      build: 'genesis v0.48',
+      build: 'genesis v0.49',
       userAgent: navigator.userAgent,
       device: (navigator.userAgentData && navigator.userAgentData.mobile != null ? 'mobile=' + navigator.userAgentData.mobile : '') +
         (navigator.userAgentData && navigator.userAgentData.platform ? ' platform=' + navigator.userAgentData.platform : ''),
@@ -89,6 +89,14 @@
     r.errors.forEach((e) => lines.push('  ' + e));
     try { const fx = window.VS.fxSpeed && window.VS.fxSpeed.last(); if (fx) lines.push(window.VS.fxSpeed.fmt(fx)); else lines.push('Effects speed test: not run yet'); } catch (e) {}
     try { if (window.__studioCheck && window.VS.studioCheck) lines.push(window.VS.studioCheck.format(window.__studioCheck)); else lines.push('Studio Check: not run yet'); } catch (e) { lines.push('Studio Check: format error'); }
+    try {   // v0.49 Phase 1: camera control result (MEASURED on this phone)
+      const cc = window.VS.CameraControl && window.VS.CameraControl.state();
+      if (cc) {
+        lines.push('CAMERA CONTROL (v0.49): ' + window.VS.CameraControl.summary());
+        lines.push('  phase ' + cc.phase + ' | exposure ' + cc.mode + ' | brighten gain x' + (cc.gain || 1).toFixed(2) + ' | face luma ' + (cc.luma == null ? 'n/a' : cc.luma) + ' | fps before ' + (cc.fpsBefore == null ? 'n/a' : cc.fpsBefore) + ' -> after ' + (cc.fpsAfter == null ? 'n/a' : cc.fpsAfter));
+        (cc.rows || []).forEach((x) => lines.push('  tried "' + x.name + '": ' + (x.error ? 'error ' + x.error : 'fps ' + x.fps + ', luma ' + x.luma + (x.why ? ' (' + x.why + ')' : '') + (x.ok ? ' [good]' : ' [rejected]') + (x.got ? ' got ' + JSON.stringify(x.got) : ''))));
+      }
+    } catch (e) { lines.push('Camera control: format error'); }
     const T = window.__tuneSummary;
     if (T) {
       lines.push('FULL TEST (' + T.seconds + ' s, battery change ' + T.batteryDropPct + ' pct points):');

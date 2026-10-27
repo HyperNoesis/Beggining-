@@ -6,7 +6,7 @@
 
 // Bump on every deploy that touches js/*, css/*, or SHELL_ASSETS — this is
 // what forces an already-installed client to drop stale cached files.
-const SHELL_CACHE = 'genesis-shell-v076';
+const SHELL_CACHE = 'genesis-shell-v077';
 const RUNTIME_CACHE = 'genesis-runtime-v10';
 
 const SHELL_ASSETS = [
@@ -15,7 +15,7 @@ const SHELL_ASSETS = [
   'call.html', 'remote.html', 'cam.html', 'landing.html', 'privacy.html', 'terms.html', 'docs/PRIVACY.md', 'docs/TERMS.md',
   'manifest.json',
   'css/style.css',
-  'js/light-meter.js', 'js/app.js', 'js/diagnostics.js', 'js/teleprompter.js', 'js/grade-core.js', 'js/grade-ui.js', 'js/prompter-core.js', 'js/prompter-remote.js', 'js/multisource-core.js', 'js/worklets/rnnoise-worklet.js', 'js/trim.js', 'js/providers/render-provider.js', 'js/render-ui.js', 'js/ba-capture.js', 'js/legal.js', 'js/landing.js', 'js/golive-core.js', 'js/golive.js', 'js/multisource.js', 'js/cam.js', 'js/remote.js', 'js/graphics.js', 'js/qr.js', 'js/brand-core.js', 'js/show-core.js', 'js/show.js', 'js/looks.js', 'js/audio-chain.js', 'js/audio-ui.js', 'js/audio-mix.js', 'js/rec-extras.js', 'js/providers/lufs-meter.js', 'js/worklets/lufs-worklet.js', 'js/audio-studio.js', 'js/auth.js', 'js/config.js',
+  'js/camera-control.js', 'js/light-meter.js', 'js/app.js', 'js/diagnostics.js', 'js/teleprompter.js', 'js/grade-core.js', 'js/grade-ui.js', 'js/prompter-core.js', 'js/prompter-remote.js', 'js/multisource-core.js', 'js/worklets/rnnoise-worklet.js', 'js/trim.js', 'js/providers/render-provider.js', 'js/render-ui.js', 'js/ba-capture.js', 'js/legal.js', 'js/landing.js', 'js/golive-core.js', 'js/golive.js', 'js/multisource.js', 'js/cam.js', 'js/remote.js', 'js/graphics.js', 'js/qr.js', 'js/brand-core.js', 'js/show-core.js', 'js/show.js', 'js/looks.js', 'js/audio-chain.js', 'js/audio-ui.js', 'js/audio-mix.js', 'js/rec-extras.js', 'js/providers/lufs-meter.js', 'js/worklets/lufs-worklet.js', 'js/audio-studio.js', 'js/auth.js', 'js/config.js',
   'js/editor.js', 'js/error-boundary.js', 'js/icons.js', 'js/iris.js',
   'js/nav.js', 'js/storage.js', 'js/templates.js', 'js/call.js',
   'js/camera-bridge-client.js',
