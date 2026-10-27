@@ -1,0 +1,10 @@
+# Netlify applies these on every deploy. Real fix for a real class of bug:
+# without this, Netlify's CDN (or an intermediate cache) can keep serving an
+# old cached sw.js/HTML to visitors even after a fresh deploy, independent
+# of anything the service worker's own version bumping does browser-side.
+
+/sw.js
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache

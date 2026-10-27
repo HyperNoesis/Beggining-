@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Environments</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <div class="main-content" id="mainContent" role="main">
+      <div class="page-head">
+        <div><span class="panel-eyebrow">SCENE LIBRARY</span>
+          <h1>Environments</h1>
+          <p class="subtitle">Choose the feeling before the technical setup. Built-in worlds, your own uploads, and generated scenes.</p>
+        </div>
+        <a href="studio.html" class="btn ghost">Open Studio</a>
+      </div>
+
+      <div class="section">
+        <div class="env-toolbar">
+          <div class="env-tabs" id="categoryTabs"></div>
+          <input type="file" id="uploadBg" accept="image/*">
+        </div>
+        <div id="envGrid" class="grid"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Create a world</h2></div>
+        <div class="generate-panel">
+          <div class="gen-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>
+          <div class="gen-copy">
+            <h3>Describe an environment, Genesis builds it</h3>
+            <p>Free, real image generation via Pollinations.ai.</p>
+            <p class="text-dim" style="font-size:12px;">Your description is sent to Pollinations.ai to generate the image.</p>
+            <div class="generate-form">
+              <input type="text" id="genPrompt" placeholder="e.g. warm cinematic podcast studio overlooking Lagos at night">
+              <button id="genBtn" class="btn primary">Create World</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/providers/environment-provider.js"></script>
+  <script>
+    let envProvider;
+    let activeCategory = 'All';
+
+    function categoriesFrom(list) {
+      const set = new Set(list.map(e => e.category || 'Custom'));
+      return ['All', ...Array.from(set)];
+    }
+
+    function renderTabs(list) {
+      const tabs = categoriesFrom(list);
+      const el = document.getElementById('categoryTabs');
+      el.innerHTML = tabs.map(t => `<button class="tab ${t === activeCategory ? 'active' : ''}" data-cat="${t}">${t}</button>`).join('');
+      el.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => { activeCategory = btn.dataset.cat; render(); });
+      });
+    }
+
+    async function render() {
+      const grid = document.getElementById('envGrid');
+      const list = envProvider.list();
+      renderTabs(list);
+      const filtered = activeCategory === 'All' ? list : list.filter(e => (e.category || 'Custom') === activeCategory);
+
+      grid.innerHTML = `<div class="upload-card" id="uploadCardTrigger">${window.VS.icon('upload', 22)}<span>Upload your own background</span></div>`;
+      filtered.forEach(env => {
+        const card = document.createElement('div');
+        card.className = 'env-card';
+        card.innerHTML = `
+          <div class="env-thumb" style="${envProvider.getPreviewStyle(env.id)}"></div>
+          <div class="env-body">
+            <div class="env-name">${env.name}</div>
+            <div class="env-cat">${env.type === 'image' ? 'Custom upload' : env.category || 'Built-in'}</div>
+          </div>
+          ${env.type === 'image' ? `<button data-id="${env.id}" class="link-btn remove-env" style="position:absolute; bottom:11px; right:13px;">Remove</button>` : ''}`;
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.remove-env')) return;
+          window.location.href = `studio.html?env=${env.id}`;
+        });
+        grid.appendChild(card);
+      });
+
+      document.getElementById('uploadCardTrigger').addEventListener('click', () => document.getElementById('uploadBg').click());
+      grid.querySelectorAll('.remove-env').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          envProvider.removeCustomImage(btn.dataset.id);
+          render();
+        });
+      });
+    }
+
+    (async () => {
+      const user = await window.VS.renderNav('environments');
+      if (!user) return;
+
+      envProvider = new window.VS.StaticEnvironmentProvider();
+      await envProvider.hydrateFromStorage();
+      render();
+
+      document.getElementById('uploadBg').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            await window.VS.StaticEnvironmentProvider.persistCustomImage(file.name, img);
+            activeCategory = 'All';
+            await envProvider.hydrateFromStorage();
+            render();
+          } catch (err) {
+            alert(err.message);
+          }
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      document.getElementById('genBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('genBtn');
+        const promptInput = document.getElementById('genPrompt');
+        const prompt = promptInput.value.trim();
+        if (!prompt) { alert('Describe the environment first.'); return; }
+        btn.disabled = true;
+        const original = btn.textContent;
+        btn.textContent = 'Generating...';
+        try {
+          async function fetchGeneration(attempt) {
+            const key = (window.VS && window.VS.config && window.VS.config.pollinationsApiKey || '').trim();
+            // Seed must fit Pollinations' documented range (0…2147483647 / int32) — Date.now()
+            // alone is ~1.7 trillion and gets rejected as "Query parameter validation failed".
+            const seed = (Date.now() + attempt) % 2147483647;
+            const params = `width=1280&height=720&seed=${seed}${key ? `&key=${encodeURIComponent(key)}` : ''}`;
+            const url = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?${params}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 45000);
+            try {
+              return await fetch(url, { signal: controller.signal });
+            } catch (e) {
+              if (e.name === 'AbortError') throw new Error('Generation timed out after 45s. Pollinations.ai can be slow on first request — try again.');
+              throw new Error('Could not reach Pollinations.ai. Check your connection and try again.');
+            } finally {
+              clearTimeout(timeout);
+            }
+          }
+          let res = await fetchGeneration(0);
+          if (!res.ok && res.status >= 500) {
+            await new Promise(r => setTimeout(r, 2500));
+            res = await fetchGeneration(1);
+          }
+          if (!res.ok) {
+            let serverMessage = '';
+            try {
+              const bodyText = await res.text();
+              try {
+                const parsed = JSON.parse(bodyText);
+                serverMessage = (parsed && parsed.error && parsed.error.message) || (parsed && parsed.message) || '';
+              } catch (_) {
+                serverMessage = bodyText.slice(0, 200);
+              }
+            } catch (_) { /* body already consumed or unreadable — fall back to status only */ }
+            const reason = res.status === 401
+              ? `Pollinations.ai rejected the API key (HTTP 401)${serverMessage ? ': ' + serverMessage : ''}. Get a fresh key at enter.pollinations.ai/keys and paste it into js/config.js.`
+              : res.status === 402
+                ? `Pollinations.ai says this key is out of Pollen (HTTP 402)${serverMessage ? ': ' + serverMessage : ''}.`
+                : res.status === 429
+                  ? 'Pollinations.ai is rate-limiting (the free key allows about 1 generation per hour); wait a bit and try again.'
+                  : res.status >= 500
+                    ? `Pollinations.ai's server had an error (HTTP ${res.status}) after a retry; this is on their end, try again shortly.`
+                    : `Generation failed (HTTP ${res.status})${serverMessage ? ': ' + serverMessage : ''}. Try a different description.`;
+            throw new Error(reason);
+          }
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => reject(new Error('Received a response but it wasn\u2019t a valid image.'));
+            img.src = objectUrl;
+          });
+          await window.VS.StaticEnvironmentProvider.persistCustomImage(prompt.slice(0, 40), img);
+          activeCategory = 'All';
+          await envProvider.hydrateFromStorage();
+          render();
+          promptInput.value = '';
+          URL.revokeObjectURL(objectUrl);
+        } catch (err) {
+          alert('Generation failed: ' + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

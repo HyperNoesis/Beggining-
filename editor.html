@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Editor</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .editor-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+  @media (max-width: 980px) { .editor-grid { grid-template-columns: 1fr; } }
+  .editor-preview { background: #000; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border-strong); }
+  .editor-preview video { width: 100%; display: block; max-height: 60vh; background: #000; }
+  .scrub-row { padding: 14px 16px; background: var(--surface-2); border-top: 1px solid var(--border); }
+  .scrub-track { position: relative; height: 34px; }
+  .scrub-track input[type="range"] { position: absolute; top: 10px; left: 0; width: 100%; pointer-events: none; -webkit-appearance: none; background: transparent; }
+  .scrub-track input[type="range"]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--blue); border: 2px solid #fff; cursor: pointer; }
+  .scrub-track input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--blue); border: 2px solid #fff; cursor: pointer; }
+  .scrub-fill { position: absolute; top: 15px; height: 4px; background: var(--surface-4); left: 0; right: 0; border-radius: 2px; }
+  .scrub-fill-active { position: absolute; top: 15px; height: 4px; background: linear-gradient(90deg, #74e3ff, #5e6ad2, #9061f9); border-radius: 2px; }
+  .trim-readout { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-faint); font-family: ui-monospace, monospace; margin-top: 4px; }
+  .marker-tick { position: absolute; top: 6px; width: 2px; height: 22px; background: var(--amber); }
+
+  .panel-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 16px; transition: border-color var(--dur-base) var(--ease); }
+  .panel-card:hover { border-color: var(--border-strong); }
+  .panel-card h3 { margin: 0 0 12px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); display: flex; align-items: center; gap: 7px; }
+  .panel-card h3 svg { width: 14px; height: 14px; opacity: 0.85; }
+  .marker-row, .seq-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; border-radius: var(--r-sm); background: var(--surface-1); border: 1px solid var(--border); font-size: 12.5px; margin-bottom: 6px; }
+  .seq-row .seq-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn.xs { padding: 5px 8px; font-size: 11px; }
+  .clip-select { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <main class="main-content" id="mainContent">
+      <div class="page-head">
+        <div>
+          <h1>Editor</h1>
+          <p class="subtitle">Trim, mark, split, and sequence your recordings. Real edits, done locally.</p>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;"></div>
+
+      <div id="editorBody" style="display:none;">
+        <div class="field clip-select">
+          <label for="clipSelect">Clip</label>
+          <select id="clipSelect"></select>
+        </div>
+
+        <div class="editor-grid">
+          <div>
+            <div class="editor-preview">
+              <video id="editorVideo" playsinline></video>
+              <div class="scrub-row">
+                <div class="scrub-track" id="scrubTrack">
+                  <div class="scrub-fill"></div>
+                  <div class="scrub-fill-active" id="scrubFillActive"></div>
+                  <input type="range" id="startRange" min="0" max="100" step="0.01" value="0" aria-label="Trim start">
+                  <input type="range" id="endRange" min="0" max="100" step="0.01" value="100" aria-label="Trim end">
+                  <input type="range" id="playheadRange" min="0" max="100" step="0.01" value="0" aria-label="Playhead" style="z-index:2;">
+                </div>
+                <div class="trim-readout">
+                  <span id="startReadout">0:00</span>
+                  <span id="durReadout">Trim: 0:00</span>
+                  <span id="endReadout">0:00</span>
+                </div>
+                <div class="btn-row" style="margin-top:12px;">
+                  <button class="btn ghost sm" id="undoBtn" type="button" title="Ctrl+Z">Undo</button>
+                  <button class="btn ghost sm" id="redoBtn" type="button" title="Ctrl+Shift+Z">Redo</button>
+                  <button class="btn ghost sm" id="playTrimBtn" type="button">Play trim</button>
+                  <button class="btn ghost sm" id="markerBtn" type="button">Add marker at playhead</button>
+                  <button class="btn ghost sm" id="splitBtn" type="button">Split at playhead</button>
+                  <button class="btn primary sm" id="exportTrimBtn" type="button">Export trimmed clip</button>
+                  <button class="btn ghost sm" id="addToSeqBtn" type="button">Add trim to sequence</button>
+                </div>
+                <p class="honesty-note" id="exportNote" style="margin-top:10px; padding-top:0; border-top:none;"></p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel-card">
+              <h3>Markers</h3>
+              <div id="markerList"></div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Sequence</h3>
+              <div id="seqList"></div>
+              <div class="btn-row" style="margin-top:10px;">
+                <button class="btn ghost xs" id="playSeqBtn" type="button">Play sequence</button>
+                <button class="btn ghost xs" id="clearSeqBtn" type="button">Clear</button>
+              </div>
+            </div>
+            <div class="panel-card">
+              <h3>Batch export (social variants)</h3>
+              <div id="aspectChecks" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
+              <button class="btn primary sm full" id="batchExportBtn" type="button">Export selected aspects</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/editor.js"></script>
+</body>
+</html>

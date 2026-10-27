@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis, a virtual studio in your browser</title>
+<meta name="description" content="Record, present and go live from a phone or laptop with a professional background, lower thirds, teleprompter and clean audio. Free to try, nothing to install.">
+<link rel="icon" href="assets/logo.png"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#08090a">
+<style>
+:root{--bg:#0c0c0f;--fg:#ececf2;--dim:#a6a6b4;--card:#16161c;--line:#2a2a34;--acc:#4da3ff;--acc2:#1f7ae0;color-scheme:dark light}
+@media (prefers-color-scheme:light){:root{--bg:#fff;--fg:#16161a;--dim:#55555f;--card:#f4f4f8;--line:#dcdce4;--acc:#0b5cad;--acc2:#0b5cad}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,sans-serif}
+a{color:var(--acc)}main,header,footer{max-width:980px;margin:0 auto;padding:0 16px}
+header{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px}header img{height:32px;vertical-align:middle}header b{margin-left:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:600 16px system-ui;text-decoration:none;cursor:pointer}
+.btn.primary{background:var(--acc2);border-color:var(--acc2);color:#fff}
+.hero{padding:34px 0 20px}h1{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:0 0 14px}.lead{font-size:18px;color:var(--dim);max-width:640px}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 6px}.fine{font-size:13px;color:var(--dim)}
+section{padding:30px 0;border-top:1px solid var(--line)}h2{font-size:26px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}.card h3{margin:0 0 4px;font-size:17px}.card p{margin:0;color:var(--dim);font-size:15px}
+.ba{position:relative;max-width:760px;aspect-ratio:16/9;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000;touch-action:pan-y}.ba img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ba .top{clip-path:inset(0 50% 0 0)}
+.ba input{position:absolute;left:0;right:0;bottom:8px;width:100%;margin:0}.ba .tag{position:absolute;top:8px;padding:2px 8px;border-radius:6px;background:#000a;color:#fff;font-size:12px}
+.scenes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.scenes img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+form{display:grid;gap:10px;max-width:520px}label{font-size:14px;color:var(--dim)}input[type=text],input[type=email],select,textarea{width:100%;min-height:46px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);font:16px system-ui}
+.warn{background:#3a2d00;border:1px solid #c9a227;color:#ffe9a6;padding:10px 12px;border-radius:10px;font-size:14px}@media (prefers-color-scheme:light){.warn{background:#fff6d6;color:#5a4600}}
+ul.ok{padding-left:20px;margin:6px 0}footer{padding:26px 16px 50px;color:var(--dim);font-size:14px;border-top:1px solid var(--line)}footer a{margin-right:14px}
+</style></head>
+<body>
+<header><span><img src="assets/logo.png" alt=""><b>Genesis</b></span><a class="btn" href="auth.html">Sign in</a></header>
+<main>
+<div class="hero">
+ <h1>Look like a studio. From your phone.</h1>
+ <p class="lead">Genesis puts you in a professional-looking room, adds your name and graphics, cleans your sound and lets you record or go live. It runs in your browser: nothing to install, and your camera picture stays on your device.</p>
+ <div class="cta"><a class="btn primary" href="studio.html">Try it with your camera</a><a class="btn" href="#pilot">Join the pilot</a></div>
+ <p class="fine">Free to try. Works best in a well-lit room. Effects need a reasonably recent phone: we show a speed test so you can see what your phone can do.</p>
+</div>
+
+<section id="see" aria-label="Before and after">
+ <h2>See the difference</h2>
+ <div id="baBox" hidden>
+  <div class="ba" id="baFrame"><img id="baAfter" alt="After: in a studio" src="assets/landing/after.jpg"><img class="top" id="baBefore" alt="Before: a plain room" src="assets/landing/before.jpg"><span class="tag" style="left:8px">Before</span><span class="tag" style="right:8px">After</span><input id="baRange" type="range" min="0" max="100" value="50" aria-label="Slide to compare before and after"></div>
+  <p class="fine">Real pictures made with Genesis on one phone, one take, no editing.</p>
+ </div>
+ <div id="baFallback"><p class="lead" style="font-size:16px">Pick a room, step in front of your camera, and you are there. A few of the rooms:</p>
+  <div class="scenes" id="sceneThumbs"></div><p class="fine">These are the room pictures. Open the studio to see yourself in them.</p></div>
+</section>
+
+<section><h2>What you get</h2>
+ <div class="grid">
+  <div class="card"><h3>Professional rooms</h3><p>12 ready rooms: newsroom, podcast, classroom, office and more, or use your own picture.</p></div>
+  <div class="card"><h3>Your name on screen</h3><p>Lower thirds, tickers, countdowns, scoreboard and QR codes in your brand colours.</p></div>
+  <div class="card"><h3>Run a whole show</h3><p>One big NEXT button moves your graphics, scene and teleprompter step by step. Run it from a second phone if you like.</p></div>
+  <div class="card"><h3>Clean sound</h3><p>Voice polish, optional background-noise removal, music that lowers when you talk, and sound buttons.</p></div>
+  <div class="card"><h3>Record or go live</h3><p>Recording keeps a safety copy as you go. Go live to YouTube or Twitch through a free relay, with a checklist before you start.</p></div>
+  <div class="card"><h3>Second phone as a camera</h3><p>Scan a code and a second phone becomes another camera angle.</p></div>
+ </div>
+</section>
+
+<section><h2>Honest limits</h2>
+ <ul class="ok"><li>It is a virtual studio, not magic: the background is a picture, so it looks best with the camera held still.</li>
+ <li>Older or low-end phones may need effects turned down. The built-in speed test tells you.</li>
+ <li>A phone browser cannot be a camera for other apps (Zoom, Meet). Use Genesis to record or go live, or use OBS on a computer.</li>
+ <li>Going live to YouTube or Twitch needs a free relay set up once. We walk you through it.</li></ul>
+</section>
+
+<section id="pilot"><h2>Join the pilot</h2>
+ <p class="lead" style="font-size:16px">We are looking for creators, teachers, churches and small businesses to use Genesis for real and tell us what breaks. It is free during the pilot. Tell us a little about you:</p>
+ <div id="pilotOff" class="warn" hidden>Pilot sign-up is not open yet. (Owner: add your contact email or WhatsApp number in <code>js/config.js</code> under <code>business</code>.)</div>
+ <form id="pilotForm" hidden>
+  <div><label for="pName">Your name</label><input id="pName" type="text" autocomplete="name" required></div>
+  <div><label for="pUse">What will you use it for?</label><select id="pUse"><option>Live streaming</option><option>Teaching or lessons</option><option>Church or community</option><option>Business videos</option><option>Podcast or interviews</option><option>Something else</option></select></div>
+  <div><label for="pPhone">Your phone (model, if you know it)</label><input id="pPhone" type="text" placeholder="e.g. Redmi 14C"></div>
+  <div><label for="pNote">Anything else?</label><textarea id="pNote" rows="3"></textarea></div>
+  <button class="btn primary" type="submit" id="pSend">Send my request</button>
+  <p class="fine" id="pHow"></p>
+ </form>
+</section>
+
+<section id="pricing"><h2>Price</h2>
+ <p class="lead" style="font-size:16px">Free during the pilot. Paid plans will be announced here before anything is charged, and your recordings stay yours either way.</p>
+ <a id="payBtn" class="btn" href="#pilot" hidden>Upgrade</a>
+</section>
+</main>
+<footer><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="studio.html">Studio</a><a href="auth.html">Sign in</a><p>Genesis by Rejuvini.</p></footer>
+<script src="js/config.js"></script><script src="js/landing.js"></script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+</body></html>

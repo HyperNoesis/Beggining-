@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');const c={};c.globalThis=c;vm.createContext(c);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/effects-speed.js'),'utf8'),c);const F=c.VS.fxSpeed;let bad=0;
+const t=(n,x)=>{if(!x)bad++;console.log((x?'PASS ':'FAIL ')+n)};
+t('full tier when all ok',F.decide({base:20,life:20,par:19.5,bloom:19,refl:19,all:18}).tier==='full');
+const l=F.decide({base:20,life:19,par:20,bloom:14,refl:15,all:12});t('light drops bloom+reflection',l.tier==='light'&&l.patch.bloom===0&&l.patch.reflection===0&&l.patch.life>0);
+t('off when all heavy',F.decide({base:20,life:10,par:10,bloom:10,refl:10,all:5}).tier==='off');
+t('off when base too slow',F.decide({base:5,life:5,par:5,bloom:5,refl:5,all:5}).tier==='off');
+t('unknown without base',F.decide({}).tier==='unknown');
+t('fmt works',/tier full/.test(F.fmt({when:'x',steps:[{label:'a',fps:1}],tier:'full',why:'w'})));
+process.exit(bad?1:0);

@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "id": "scene-premium-classroom",
+  "name": "Modern Classroom",
+  "type": "classroom",
+  "image": "assets/environments/scene-premium-classroom.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [],
+  "life": {
+    "amount": 0.3,
+    "parallax": 0.3
+  },
+  "deskLine": {
+    "y": 0.7,
+    "tilt": 0.06,
+    "bow": 0.0,
+    "feather": 6
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": -1,
+    "colour": [
+      255,
+      250,
+      235
+    ],
+    "softness": 0.65
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.58,
+    "x": 0.0,
+    "y": -0.24
+  },
+  "reflections": {
+    "desk": 0.18
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0.0,
+      "y1": 0.7,
+      "blur": 0.22
+    },
+    {
+      "name": "desk",
+      "y0": 0.7,
+      "y1": 1.0,
+      "blur": 0.0
+    }
+  ],
+  "grade": {
+    "grain": 0.4,
+    "bloom": 0.25,
+    "vignette": 0.22,
+    "dof": 0.5,
+    "colourMatch": 0.5,
+    "occlusion": 0.9
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true,
+    "inPicture": true
+  },
+  "licence": "AI-generated concept image (Grok Imagine). Commercial terms of the generator must be confirmed before shipping in a paid library.",
+  "source": "generated-2026-10-22",
+  "imported": true,
+  "tags": [
+    "classroom",
+    "desk",
+    "fixed-camera",
+    "imported",
+    "premium"
+  ],
+  "checked": {
+    "deskConfidence": 0.5,
+    "pictureOk": true,
+    "importedAt": "2026-10-22",
+    "note": "deskLine is estimated; run desk auto-detect / Scene Wizard on real device to refine",
+    "deskSource": "hand-estimated from a contact sheet (v0.21), not measured"
+  },
+  "depth": "assets/environments/scene-premium-classroom-depth.png"
+}

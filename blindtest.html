@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Genesis blind test</title>
+<style>
+:root{--bg:#08090a;--s:#131519;--s2:#191c21;--b:rgba(255,255,255,.14);--t:#f7f8f8;--d:#9aa0a8;--blue:#5e6ad2;--ok:#34d399}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:16px/1.45 system-ui,sans-serif;padding:16px;max-width:760px;margin-inline:auto}
+h1{font-size:20px;margin:4px 0 8px}h2{font-size:16px;margin:20px 0 8px}p,li{color:var(--d);font-size:14px}
+button,label.btn{min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--b);background:var(--s2);color:var(--t);font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+button.primary{background:var(--blue);border-color:var(--blue);font-weight:600}button:focus-visible,label.btn:focus-within{outline:2px solid #74e3ff;outline-offset:2px}
+.card{background:var(--s);border:1px solid var(--b);border-radius:14px;padding:14px;margin:10px 0}
+.stage{aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;display:flex}.stage img,.stage video{width:100%;height:100%;object-fit:cover}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}.row>*{flex:1 1 140px}
+input[type=text]{min-height:48px;border-radius:12px;border:1px solid var(--b);background:var(--s2);color:var(--t);padding:0 12px;font-size:16px;width:100%}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;border-bottom:1px solid var(--b);text-align:left}
+[hidden]{display:none!important}.big{font-size:18px;font-weight:600}.ok{color:var(--ok)}
+</style></head><body>
+<h1>Genesis blind test</h1>
+<p>Does a viewer notice that the room is virtual? Target from the brief: at least 7 of 10 viewers do not notice. Everything stays on this device.</p>
+
+<div id="setup" class="card">
+  <h2>1. Prepare the items (facilitator)</h2>
+  <p>Add pictures or short videos. Mark each one <b>Real</b> (a real room, same framing) or <b>Virtual</b> (a Genesis scene with a person). Use the same person, similar framing and light. Use only footage you have consent for. At least 5 of each kind.</p>
+  <div class="row"><label class="btn">Add REAL items<input id="addReal" type="file" accept="image/*,video/*" multiple hidden></label>
+  <label class="btn">Add VIRTUAL items<input id="addVirtual" type="file" accept="image/*,video/*" multiple hidden></label></div>
+  <p id="itemCount" role="status">No items yet.</p>
+  <h2>2. Run a viewer</h2>
+  <input id="viewerName" type="text" placeholder="Viewer name or number" aria-label="Viewer name">
+  <div class="row"><button id="start" class="primary" disabled>Start session</button></div>
+</div>
+
+<div id="run" class="card" hidden>
+  <div id="progress" class="big" role="status"></div>
+  <div class="stage" id="stage" aria-label="Item to judge"></div>
+  <p>Is this a real room, or a virtual background?</p>
+  <div class="row"><button id="sayReal" class="primary">Looks REAL</button><button id="sayVirtual">Looks VIRTUAL</button></div>
+</div>
+
+<div id="done" class="card" hidden><div class="big ok">Thank you. Session saved.</div><div class="row"><button id="another" class="primary">Next viewer</button></div></div>
+
+<div class="card"><h2>Results</h2>
+  <div id="verdict" class="big" role="status">No finished sessions yet.</div>
+  <table id="tbl" aria-label="Per viewer results"></table>
+  <div class="row"><button id="csv">Download CSV</button><button id="json">Download JSON</button>
+  <label class="btn">Import results<input id="imp" type="file" accept="application/json" hidden></label><button id="clear">Clear results</button></div>
+  <p>A viewer "did not notice" if they called at most 40% of the virtual items "virtual". Pass needs at least 10 viewers and 70% of them not noticing. See docs/BLIND_TEST.md.</p>
+</div>
+<script src="js/blindtest.js"></script>
+<script>
+(function(){
+  const BT=VS.BlindTest, KEY='vs_blindtest_results', $=id=>document.getElementById(id);
+  let items=[], order=[], idx=0, answers=[], urls=[];
+  const load=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}};
+  const save=v=>{try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){alert('Could not save results here (storage blocked or full). Download them now.')}};
+  function add(files,truth){[...files].forEach((f,i)=>items.push({id:truth+'-'+(items.length+1)+'-'+f.name.slice(0,20),truth,file:f,video:f.type.startsWith('video')}));upd()}
+  function upd(){const r=items.filter(i=>i.truth==='real').length,v=items.length-r;$('itemCount').textContent=items.length?r+' real, '+v+' virtual.'+(r<5||v<5?' Add at least 5 of each.':''):'No items yet.';$('start').disabled=!(r>=1&&v>=1&&$('viewerName').value.trim())}
+  $('addReal').onchange=e=>{add(e.target.files,'real');e.target.value=''};$('addVirtual').onchange=e=>{add(e.target.files,'virtual');e.target.value=''};$('viewerName').oninput=upd;
+  function show(){const it=order[idx];$('progress').textContent='Item '+(idx+1)+' of '+order.length;const st=$('stage');st.innerHTML='';
+    const u=URL.createObjectURL(it.file);urls.push(u);const el=document.createElement(it.video?'video':'img');el.src=u;if(it.video){el.autoplay=true;el.loop=true;el.muted=true;el.playsInline=true}el.alt='';st.appendChild(el)}
+  function answer(said){answers.push({itemId:order[idx].id,truth:order[idx].truth,said});idx++;
+    if(idx>=order.length){const all=load();all.push({name:$('viewerName').value.trim(),answers});save(all);urls.forEach(URL.revokeObjectURL);urls=[];$('run').hidden=true;$('done').hidden=false;render()}else show()}
+  $('start').onclick=()=>{order=BT.shuffle(items,Date.now()&0xffff);idx=0;answers=[];$('setup').hidden=true;$('run').hidden=false;show()};
+  $('sayReal').onclick=()=>answer('real');$('sayVirtual').onclick=()=>answer('virtual');
+  $('another').onclick=()=>{$('done').hidden=true;$('setup').hidden=false;$('viewerName').value='';upd()};
+  function render(){const s=BT.summarize(load());$('verdict').textContent=s.message;
+    $('tbl').innerHTML='<tr><th>Viewer</th><th>Called virtual (virtual items)</th><th>False alarms (real items)</th><th>Did not notice</th></tr>'+s.per.map(p=>'<tr><td>'+p.name.replace(/</g,'&lt;')+'</td><td>'+(p.noticeRate===null?'-':Math.round(p.noticeRate*100)+'%')+'</td><td>'+(p.falseAlarm===null?'-':Math.round(p.falseAlarm*100)+'%')+'</td><td>'+(p.didNotNotice?'yes':'no')+'</td></tr>').join('')}
+  const dl=(name,text,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click()};
+  $('csv').onclick=()=>dl('genesis-blindtest.csv',BT.toCSV(load()),'text/csv');$('json').onclick=()=>dl('genesis-blindtest.json',JSON.stringify(load()),'application/json');
+  $('imp').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(Array.isArray(j)){save(load().concat(j.filter(v=>v&&v.name&&Array.isArray(v.answers))));render()}}catch(err){alert('That file is not a Genesis blind-test export.')}e.target.value=''};
+  $('clear').onclick=()=>{if(confirm('Delete all saved blind-test results on this device?')){save([]);render()}};
+  render();upd();
+})();
+</script></body></html>

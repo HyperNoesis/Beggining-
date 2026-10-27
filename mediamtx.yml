@@ -1,0 +1,15 @@
+paths:
+  genesis:
+    webrtcICEServers2:
+      - url: stun:stun.l.google.com:19302
+    # Re-push to YouTube the moment Genesis starts publishing. Add a second
+    # line the same way to also push to Twitch (real multistreaming with
+    # what's already here — no extra service needed).
+    runOnReady: >
+      ffmpeg -i rtsp://localhost:$RTSP_PORT/$MTX_PATH
+      -c copy -f flv rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_STREAM_KEY
+    runOnReadyRestart: yes
+
+webrtcEncryption: no   # fine for localhost/private-network testing; add a
+                        # real TLS cert once this is reachable from the
+                        # public internet — see docs/LIVE_RELAY_DOCKER.md

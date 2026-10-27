@@ -1,0 +1,15 @@
+const vm=require('vm'),fs=require('fs'),path=require('path');
+const el=()=>({getContext:()=>({}),width:0,height:0,addEventListener(){}});
+const ctx={window:{},document:{readyState:'complete',createElement:el,getElementById:()=>null,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){}},performance:{now:()=>0},setTimeout,createImageBitmap:()=>Promise.resolve({})};ctx.window=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/graphics.js'),'utf8'),ctx);
+const P=ctx.VS.Graphics.pure;let bad=0;const t=(n,c)=>{if(!c)bad++;console.log((c?'PASS ':'FAIL ')+n)};
+t('not shown -> invisible',!P.ltProgress(100,null,null,450,320).visible);
+t('just shown p=0',P.ltProgress(1000,1000,null,450,320).p===0);
+t('after in-time p=1',P.ltProgress(1500,1000,null,450,320).p===1);
+t('mid slide between 0 and 1',(()=>{const p=P.ltProgress(1200,1000,null,450,320).p;return p>0&&p<1})());
+t('hiding fades out then invisible',P.ltProgress(1000+330+1,500,1000+0,450,320).visible===false&&P.ltProgress(1100,500,1000,450,320).visible===true);
+t('ticker moves left',P.tickerOffset(1000,100,500)===-100);
+t('ticker wraps',P.tickerOffset(6000,100,500)===-100);
+t('ticker zero width safe',P.tickerOffset(1000,100,0)===0);
+t('clock pads',P.clockText(new Date(2026,0,1,9,5))==='09:05');
+process.exit(bad?1:0);

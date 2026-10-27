@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Home</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <div class="main-content" id="mainContent" role="main">
+      <div class="hero" id="heroBanner">
+        <div class="hero-visual" id="heroVisual">
+          <div class="rig-floor"></div>
+          <div class="rig-light key"></div>
+          <div class="rig-light fill"></div>
+          <div class="rig-light rim"></div>
+          <div class="viewfinder"><i></i><i></i><i></i><i></i></div>
+          <div class="onair"><span class="dot"></span><span>Studio lighting, no rig needed</span></div>
+        </div>
+        <div class="hero-body">
+          <div class="hero-copy">
+            <div class="tally" id="heroTally" style="display:none;"><span class="dot"></span><span>For streamers who keep hitting cancel</span></div>
+            <h1 id="greeting">Welcome back</h1>
+            <p>Your creative space for recording, presenting, and going live. Start with a scene, find your frame, and let Genesis handle the production details.</p>
+            <div class="hero-actions">
+              <a href="studio.html"><button class="btn primary">Open Studio</button></a>
+              <a href="environments.html"><button class="btn ghost">Browse environments</button></a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="home-command" aria-label="Create something">
+        <div class="command-copy"><span class="panel-eyebrow">CREATE</span><strong id="creatorHomeLine">Your studio is ready.</strong><span>Choose the path that fits what you're making today.</span></div>
+        <div class="command-actions">
+          <a href="studio.html" class="command-action primary"><span class="command-icon">●</span><span><b>Record</b><small>Open a fresh studio session</small></span></a>
+          <a href="environments.html" class="command-action"><span class="command-icon env">✦</span><span><b>Pick a world</b><small>Find a room before you start</small></span></a>
+          <a href="projects.html" class="command-action"><span class="command-icon">↗</span><span><b>Continue</b><small>Return to a saved creation</small></span></a>
+        </div>
+      </section>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Recent creations</h2>
+          <a href="projects.html" class="section-note">View all &rarr;</a>
+        </div>
+        <div id="recentRecordings" class="grid creations"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h2>Featured environments</h2>
+          <a href="environments.html" class="section-note">View library &rarr;</a>
+        </div>
+        <div id="envGallery" class="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/iris.js"></script>
+  <script src="js/providers/environment-provider.js"></script>
+  <script>
+    function formatDuration(seconds) {
+      if (!seconds || !isFinite(seconds)) return '';
+      const m = Math.floor(seconds / 60);
+      const s = Math.round(seconds % 60);
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    (async () => {
+      const user = await window.VS.renderNav('home');
+      if (!user) return;
+      document.getElementById('greeting').textContent = `Welcome back, ${user.name.split(' ')[0]}`;
+      document.getElementById('creatorHomeLine').textContent = `${user.name.split(' ')[0]}'s studio is ready.`;
+      document.getElementById('heroTally').style.display = 'flex';
+
+      // Subtle, single-purpose interaction: the lighting rig's key/fill/rim
+      // lights drift slightly toward the cursor, like a rig responding to
+      // where the subject is standing. Skipped entirely for
+      // prefers-reduced-motion, and harmless (no listener attached) on
+      // touch devices with no mousemove.
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const visual = document.getElementById('heroVisual');
+        visual.addEventListener('mousemove', (e) => {
+          const r = visual.getBoundingClientRect();
+          visual.style.setProperty('--mx', ((e.clientX - r.left) / r.width - 0.5).toFixed(2));
+          visual.style.setProperty('--my', ((e.clientY - r.top) / r.height - 0.5).toFixed(2));
+        });
+        visual.addEventListener('mouseleave', () => {
+          visual.style.setProperty('--mx', 0);
+          visual.style.setProperty('--my', 0);
+        });
+      }
+
+      const recContainer = document.getElementById('recentRecordings');
+      window.VS.storage.listRecordings().then(recs => {
+        if (recs.length === 0) {
+          recContainer.innerHTML = `
+            <div class="first-creation">
+              <div class="fc-icon">${window.VS.icon('studio', 20)}</div>
+              <div class="fc-body">
+                <div class="fc-title">Your first creation is waiting</div>
+                <div class="fc-sub">Open Studio and go live without anyone seeing your room. It only takes one take.</div>
+              </div>
+              <a href="studio.html"><button class="btn primary">Open Studio</button></a>
+            </div>`;
+          return;
+        }
+        recContainer.innerHTML = '';
+        recs.slice(0, 4).forEach(rec => {
+          const url = URL.createObjectURL(rec.blob);
+          const card = document.createElement('a');
+          card.className = 'card';
+          card.href = 'projects.html';
+          card.innerHTML = `
+            <div class="thumb">
+              <video src="${url}#t=0.3" muted preload="metadata"></video>
+              <div class="card-play"><span>${window.VS.icon('play', 18)}</span></div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">${rec.meta.environment || 'Recording'}</div>
+              <div class="card-meta">${rec.meta.createdAt || ''}</div>
+            </div>`;
+          recContainer.appendChild(card);
+        });
+      });
+
+      const envProvider = new window.VS.StaticEnvironmentProvider();
+      envProvider.hydrateFromStorage().then(() => {
+        const container = document.getElementById('envGallery');
+        container.innerHTML = '';
+        envProvider.list().slice(0, 6).forEach(env => {
+          const card = document.createElement('a');
+          card.className = 'card';
+          card.href = `studio.html?env=${env.id}`;
+          card.innerHTML = `
+            <div class="thumb" style="${envProvider.getPreviewStyle(env.id)}"></div>
+            <div class="card-body">
+              <div class="card-title">${env.name}</div>
+              <div class="card-meta">${env.type === 'image' ? 'Custom upload' : env.category || 'Built-in'}</div>
+            </div>`;
+          container.appendChild(card);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

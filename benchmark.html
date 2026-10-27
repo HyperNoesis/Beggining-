@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Realism Benchmark</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .bench-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:14px; }
+  .bench-table th, .bench-table td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  .bench-table th { background:var(--surface-2); font-weight:600; }
+  .bench-table td.scenario { min-width:180px; }
+  .bench-table .scenario-how { display:block; color:var(--text-faint); font-size:11px; margin-top:3px; }
+  .bench-table select { width:100%; background:var(--surface-1); color:inherit; border:1px solid var(--border); border-radius:6px; padding:5px; font-size:12.5px; }
+  .bench-table select.rating-pass { border-color: rgba(52,211,153,0.5); }
+  .bench-table select.rating-marginal { border-color: rgba(245,166,35,0.5); }
+  .bench-table select.rating-fail { border-color: rgba(240,85,95,0.5); }
+  .bench-note { width:100%; margin-top:14px; }
+  .bench-note textarea { width:100%; min-height:60px; background:var(--surface-1); color:inherit; border:1px solid var(--border); border-radius:8px; padding:8px; font-size:12.5px; font-family:inherit; }
+  .bench-summary { margin-top:18px; padding:12px 14px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <div class="main-content" id="mainContent" role="main">
+      <div class="page-head">
+        <div>
+          <h1>Realism benchmark</h1>
+          <p class="subtitle">
+            This is the thing ROADMAP.md flags as "gated on real testing, not on more building" —
+            a structured way to actually run it, instead of guessing. Open Studio in another tab,
+            do each scenario below against each quality mode, rate what you see, come back and
+            record it. Results save to this device only.
+          </p>
+        </div>
+        <a href="studio.html" class="btn primary sm" target="_blank" rel="noopener">Open Studio ↗</a>
+      </div>
+
+      <table class="bench-table" id="benchTable">
+        <thead>
+          <tr>
+            <th style="width:220px;">Scenario</th>
+            <th>FAST</th>
+            <th>BALANCED</th>
+            <th>QUALITY</th>
+          </tr>
+        </thead>
+        <tbody><!-- rows injected by benchmark.js --></tbody>
+      </table>
+
+      <div class="bench-note">
+        <label for="benchNotes" style="font-size:12.5px; color:var(--text-dim);">Free-form notes (what specifically broke, lighting setup used, camera, etc.)</label>
+        <textarea id="benchNotes" placeholder="e.g. QUALITY mode still smears the mask on fast hand movement across all lighting..."></textarea>
+      </div>
+
+      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+        <button id="saveBenchBtn" class="btn primary sm">Save results</button>
+        <button id="exportBenchBtn" class="btn ghost sm">Export as Markdown</button>
+        <span id="benchSaveMsg" style="font-size:12px; color:var(--success);"></span>
+      </div>
+
+      <div class="bench-summary" id="benchSummary"></div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/benchmark.js"></script>
+</body>
+</html>

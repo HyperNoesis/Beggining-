@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "id": "scene-premium-sports",
+  "name": "Sports Live Desk",
+  "type": "sports desk",
+  "image": "assets/environments/scene-premium-sports.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [],
+  "life": {
+    "amount": 0.4,
+    "parallax": 0.25
+  },
+  "deskLine": {
+    "y": 0.54,
+    "tilt": 0,
+    "bow": -0.015,
+    "feather": 6
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": 1,
+    "colour": [
+      235,
+      232,
+      232
+    ],
+    "softness": 0.6
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.4,
+    "x": 0.0,
+    "y": -0.3
+  },
+  "reflections": {
+    "desk": 0.18
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0,
+      "y1": 0.54,
+      "blur": 0.2
+    },
+    {
+      "name": "desk",
+      "y0": 0.54,
+      "y1": 1,
+      "blur": 0
+    }
+  ],
+  "grade": {
+    "grain": 0.4,
+    "bloom": 0.2,
+    "vignette": 0.2,
+    "dof": 0.4,
+    "colourMatch": 0.5,
+    "occlusion": 0.9
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true,
+    "inPicture": true
+  },
+  "licence": "AI-generated image supplied by the owner (John), Grok Imagine. Commercial terms NOT recorded: confirm before shipping in a paid library. Five league/brand logos on the right panel were painted out (brief: no brand marks).",
+  "source": "owner chat upload 2026-10-22",
+  "imported": true,
+  "tags": [
+    "sports desk",
+    "desk",
+    "fixed-camera",
+    "imported"
+  ],
+  "checked": {
+    "deskConfidence": 1,
+    "pictureOk": false,
+    "importedAt": "2026-10-22"
+  },
+  "depth": "assets/environments/scene-premium-sports-depth.png"
+}

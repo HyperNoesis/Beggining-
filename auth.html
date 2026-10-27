@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — by Rejuvini</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-outer">
+      <div class="auth-visual">
+        <div id="authIris" class="iris"></div>
+        <div class="eyebrow">For streamers who keep hitting cancel</div>
+        <h2>Your room was never the reason to skip going live.</h2>
+        <p>Genesis composites a real studio around you, live in your browser. No lighting rig, no room reveal, no crew, and free to try before anything costs a cent.</p>
+      </div>
+      <div class="auth-card">
+        <div class="brand-header">
+          <img src="assets/logo-mark.png" alt="Rejuvini">
+          <div>
+            <h1>Genesis</h1>
+            <div class="brand-sub">by Rejuvini</div>
+          </div>
+        </div>
+        <p class="subtitle">Go live without showing your room.</p>
+
+        <div class="auth-tabs">
+          <button id="tabSignIn" class="active">Sign in</button>
+          <button id="tabSignUp">Sign up</button>
+        </div>
+
+        <form id="signInForm">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <div class="field-with-action">
+              <input type="password" id="siPassword" placeholder="********" autocomplete="current-password">
+              <button type="button" class="field-toggle-btn" data-toggle="siPassword" aria-label="Show password"></button>
+            </div>
+          </div>
+          <button type="submit" class="btn primary full-btn full">Sign in</button>
+          <div class="error-msg" id="siError"></div>
+          <div class="success-msg" id="siNotice" style="display:none;"></div>
+          <p style="margin-top:10px;"><a href="#" id="forgotPasswordLink" style="font-size:13px;">Forgot password?</a></p>
+        </form>
+
+        <form id="forgotForm" style="display:none;">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="fpEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <button type="submit" class="btn primary full-btn full">Send reset link</button>
+          <div class="error-msg" id="fpError"></div>
+          <div class="success-msg" id="fpNotice" style="display:none;"></div>
+          <p style="margin-top:10px;"><a href="#" id="backToSignInLink" style="font-size:13px;">Back to sign in</a></p>
+        </form>
+
+        <form id="signUpForm" style="display:none;">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="suName" placeholder="Your name" autocomplete="name">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <div class="field-with-action">
+              <input type="password" id="suPassword" placeholder="At least 6 characters" autocomplete="new-password">
+              <button type="button" class="field-toggle-btn" data-toggle="suPassword" aria-label="Show password"></button>
+            </div>
+            <p class="field-hint" id="suPasswordHint"></p>
+          </div>
+          <button type="submit" class="btn primary full-btn full">Create account</button>
+          <div class="error-msg" id="suError"></div>
+          <div class="success-msg" id="suNotice" style="display:none;"></div>
+        </form>
+
+        <p class="auth-honesty" id="authHonesty"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/iris.js"></script>
+  <script>
+    document.getElementById('authIris').innerHTML = window.VS.irisSVG();
+
+    document.querySelectorAll('.field-toggle-btn').forEach((btn) => {
+      const input = document.getElementById(btn.dataset.toggle);
+      btn.innerHTML = window.VS.icon('eye', 17);
+      btn.addEventListener('click', () => {
+        const shown = input.type === 'text';
+        input.type = shown ? 'password' : 'text';
+        btn.innerHTML = window.VS.icon(shown ? 'eye' : 'eyeOff', 17);
+        btn.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+      });
+    });
+
+    const suPassword = document.getElementById('suPassword');
+    const suPasswordHint = document.getElementById('suPasswordHint');
+    suPassword.addEventListener('input', () => {
+      const len = suPassword.value.length;
+      if (!len) { suPasswordHint.textContent = ''; return; }
+      suPasswordHint.textContent = len < 6 ? `${6 - len} more character${6 - len === 1 ? '' : 's'} needed` : 'Good to go';
+      suPasswordHint.classList.toggle('invalid', len < 6);
+    });
+
+    const tabSignIn = document.getElementById('tabSignIn');
+    const tabSignUp = document.getElementById('tabSignUp');
+    const signInForm = document.getElementById('signInForm');
+    const signUpForm = document.getElementById('signUpForm');
+    const forgotForm = document.getElementById('forgotForm');
+
+    const honestyEl = document.getElementById('authHonesty');
+    honestyEl.textContent = window.VS.auth.mode === 'supabase'
+      ? 'Your account is stored securely in the cloud and works across any device you sign in on.'
+      : 'This account lives on this device only — local storage, no server. Sign in from another device and it won\u2019t follow you there yet.';
+
+    function showForm(form) {
+      [signInForm, signUpForm, forgotForm].forEach(f => f.style.display = f === form ? 'block' : 'none');
+    }
+
+    tabSignIn.addEventListener('click', () => {
+      tabSignIn.classList.add('active'); tabSignUp.classList.remove('active');
+      showForm(signInForm);
+    });
+    tabSignUp.addEventListener('click', () => {
+      tabSignUp.classList.add('active'); tabSignIn.classList.remove('active');
+      showForm(signUpForm);
+    });
+    document.getElementById('forgotPasswordLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('fpEmail').value = document.getElementById('siEmail').value;
+      showForm(forgotForm);
+    });
+    document.getElementById('backToSignInLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      tabSignIn.classList.add('active'); tabSignUp.classList.remove('active');
+      showForm(signInForm);
+    });
+
+    function setLoading(btn, loading, label) {
+      btn.disabled = loading;
+      btn.textContent = loading ? 'Please wait...' : label;
+    }
+
+    signInForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('siError');
+      const btn = signInForm.querySelector('button[type="submit"]');
+      errorEl.textContent = '';
+      setLoading(btn, true, 'Sign in');
+      try {
+        await window.VS.auth.signIn(
+          document.getElementById('siEmail').value,
+          document.getElementById('siPassword').value
+        );
+        window.location.href = 'home.html';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        setLoading(btn, false, 'Sign in');
+      }
+    });
+
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('fpError');
+      const noticeEl = document.getElementById('fpNotice');
+      const btn = forgotForm.querySelector('button[type="submit"]');
+      errorEl.textContent = ''; noticeEl.style.display = 'none';
+      setLoading(btn, true, 'Send reset link');
+      try {
+        await window.VS.auth.resetPassword(document.getElementById('fpEmail').value);
+        noticeEl.textContent = 'Check your email for a link to reset your password.';
+        noticeEl.style.display = 'block';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        setLoading(btn, false, 'Send reset link');
+      }
+    });
+
+    signUpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('suError');
+      const noticeEl = document.getElementById('suNotice');
+      const btn = signUpForm.querySelector('button[type="submit"]');
+      errorEl.textContent = ''; noticeEl.style.display = 'none';
+      setLoading(btn, true, 'Create account');
+      try {
+        const result = await window.VS.auth.signUp(
+          document.getElementById('suName').value,
+          document.getElementById('suEmail').value,
+          document.getElementById('suPassword').value
+        );
+        if (result.needsConfirmation) {
+          noticeEl.textContent = 'Almost there. Check your email to confirm your account, then sign in.';
+          noticeEl.style.display = 'block';
+          signUpForm.reset();
+          suPasswordHint.textContent = '';
+          setLoading(btn, false, 'Create account');
+        } else {
+          window.location.href = 'home.html';
+        }
+      } catch (err) {
+        errorEl.textContent = err.message;
+        setLoading(btn, false, 'Create account');
+      }
+    });
+
+    window.VS.auth.getCurrentUser().then(user => {
+      if (user) window.location.href = 'home.html';
+    });
+  </script>
+</body>
+</html>

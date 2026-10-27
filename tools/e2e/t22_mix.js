@@ -1,0 +1,30 @@
+const { launch } = require('./pwlib.js');const R=[];const ok=(n,c,d)=>{R.push(!!c);console.log((c?'PASS ':'FAIL ')+n+(d!==undefined?' '+JSON.stringify(d):''))};
+(async()=>{const {browser,ctx}=await launch();const page=await ctx.newPage();const errs=[];page.on('pageerror',e=>errs.push(e.message));
+await page.addInitScript(()=>{localStorage.setItem('vs_autostart','0')});await page.goto('http://127.0.0.1:8123/app/studio.html');await page.waitForSelector('#startBtn');await page.click('#startBtn');await page.waitForTimeout(4000);
+await page.click('.tool-tab[data-target="panel-audio"]');
+await page.evaluate(()=>{const c=VS.audioChain;c.resume();const a=c.ctx.createAnalyser();a.fftSize=2048;c.nodes.master.connect(a);window.__rms=()=>{const b=new Float32Array(2048);a.getFloatTimeDomainData(b);let s=0;for(const v of b)s+=v*v;return Math.sqrt(s/b.length)};window.__samples=[]});
+ok('audio chain is up',await page.evaluate(()=>VS.audioChain&&VS.audioChain.ok));
+const base=await page.evaluate(async()=>{await new Promise(r=>setTimeout(r,500));return window.__rms()});
+await page.setInputFiles('#mixMusicFile','/tmp/music.wav');await page.waitForTimeout(1500);
+ok('music loads and plays (status text)',await page.evaluate(()=>/Playing/.test(document.getElementById('mixNote').textContent)&&VS.audioChain.music.playing),await page.evaluate(()=>document.getElementById('mixNote').textContent));
+// sample music-duck gain and duckActive for 6 s with ducking on, then off
+const run=(n)=>page.evaluate(async(n)=>{const g=[],act=[];for(let i=0;i<n;i++){g.push(VS.audioChain.nodes.musicDuck.gain.value);act.push(VS.audioChain.duckActive);await new Promise(r=>setTimeout(r,150))}return {min:Math.min(...g),max:Math.max(...g),anyActive:act.some(Boolean),peak:VS.audioChain.peakDb}},n);
+const on=await run(40);const rmsMusic=await page.evaluate(()=>window.__rms());
+ok('music is audible in the mix output (louder than mic alone)',rmsMusic>base*1.5||rmsMusic>0.01,{base,rmsMusic});
+ok('ducking responds: gain dips below 0.6 when voice present, or stays 1 only if mic is silent',on.anyActive?on.min<0.6:on.max===1,on);
+await page.uncheck('#mixDuck');const off=await run(15);
+ok('duck off -> music gain returns to 1',off.min>0.95,off);
+await page.check('#mixDuck');
+// soundboard
+const before=await page.evaluate(()=>window.__rms());await page.click('#mixStop');await page.waitForTimeout(600);
+const quiet=await page.evaluate(()=>window.__rms());
+await page.evaluate(()=>{window.__peak=0;const t=setInterval(()=>{window.__peak=Math.max(window.__peak,window.__rms())},30);setTimeout(()=>clearInterval(t),1500)});
+await page.click('[data-sb="ding"]');await page.waitForTimeout(1700);
+const pk=await page.evaluate(()=>window.__peak);ok('stop silences the music; Ding makes sound',pk>quiet*2&&pk>0.02,{quiet,pk});
+for(const k of ['whoosh','sting','buzzer'])ok('synth '+k+' builds a buffer',await page.evaluate((k)=>{const b=VS.audioChain.synthSound(k);return b&&b.length>1000&&Math.max(...b.getChannelData(0).slice(0,5000))>0},k));
+await page.setInputFiles('#mixPads input[type=file] >> nth=0','/tmp/music.wav');await page.waitForTimeout(800);
+ok('own sound pad loads',await page.evaluate(()=>/Pad 1 ready/.test(document.getElementById('mixNote').textContent)));
+await page.check('#mixMonitor');ok('monitor on = gain 1, warns about headphones',await page.evaluate(()=>VS.audioChain.nodes.monitor.gain.value===1&&/headphones/.test(document.getElementById('mixNote').textContent)));
+await page.setViewportSize({width:360,height:740});await page.waitForTimeout(300);
+const lay=await page.evaluate(()=>({side:document.documentElement.scrollWidth<=innerWidth+1,small:[...document.querySelectorAll('#panel-audio button')].filter(b=>b.offsetParent&&b.getBoundingClientRect().height<44).map(b=>b.id||b.textContent)}));
+ok('360 px layout ok',lay.side&&!lay.small.length,lay);ok('no page errors',!errs.length,errs);await browser.close();process.exit(R.every(Boolean)?0:1)})().catch(e=>{console.error(e);process.exit(2)});

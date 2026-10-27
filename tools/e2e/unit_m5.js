@@ -1,0 +1,26 @@
+const vm=require('vm'),fs=require('fs'),path=require('path');const c={document:{readyState:'loading',addEventListener(){},getElementById(){return null}}};c.window=c;vm.createContext(c);
+for(const f of ['legal.js','landing.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/',f),'utf8'),c);
+const L=c.VS.Legal,P=c.VS.Landing;let bad=0;const t=(n,x)=>{if(!x)bad++;console.log((x?'PASS ':'FAIL ')+n)};
+const biz={name:'Rejuvini',email:'a@b.co',jurisdiction:'Nigeria',effectiveDate:'1 Nov 2026'};
+let f=L.fill('Op by **[PLACEHOLDER: legal entity / your name]**, in **[PLACEHOLDER: jurisdiction, e.g. Nigeria]**. **[PLACEHOLDER: Effective date]** **[PLACEHOLDER: contact email]**',biz);
+t('fills the four known fields',f.text==='Op by **Rejuvini**, in **Nigeria**. **1 Nov 2026** **a@b.co**'&&f.missing.length===0);
+f=L.fill('**[PLACEHOLDER: contact email]** and **[PLACEHOLDER: standard limitation-of-liability language]**',{});
+t('missing email listed + other items counted',f.missing.includes('contact email')&&f.missing.some(m=>/1 other item/.test(m)));
+t('unknown placeholder stays visible (never hidden)',/PLACEHOLDER: standard/.test(f.text));
+t('empty/whitespace business value counts as missing',L.fill('[PLACEHOLDER: contact email]',{email:'  '}).missing.includes('contact email'));
+const h=L.render('# T\n\nHello **b** `c` [x](https://e.com)\nnext line\n\n- one\n  more\n- two\n\n## H2\n<script>alert(1)</script>');
+t('render: headings, bold, code, link, list',/<h1>T<\/h1>/.test(h)&&/<strong>b<\/strong>/.test(h)&&/<code>c<\/code>/.test(h)&&/<a href="https:\/\/e.com"/.test(h)&&/<li>one more<\/li>/.test(h)&&/<h2>H2<\/h2>/.test(h));
+t('render: multi-line paragraph joined',/Hello .* next line<\/p>/.test(h));
+t('render: script is escaped',!/<script>/.test(h)&&/&lt;script&gt;/.test(h));
+t('render: javascript: link not made a link',!/href="javascript/.test(L.render('[x](javascript:alert(1))')));
+t('render: placeholder highlighted',/class="ph"/.test(L.render('**[PLACEHOLDER: x]**')));
+// pilot message
+let m=P.pilotMessage({name:'Ada',use:'Teaching',phone:'Redmi 14C',note:'hi\nthere'},{whatsapp:'+234 801 234 5678',email:'a@b.co'});
+t('whatsapp preferred, digits only, message encoded',m.how==='WhatsApp'&&m.href.startsWith('https://wa.me/2348012345678?text=')&&!/\n/.test(m.text.split('Note: ')[1]));
+m=P.pilotMessage({name:'Ada'},{email:'a@b.co'});t('email fallback is mailto',m.how==='email'&&m.href.startsWith('mailto:a@b.co?subject='));
+t('no contact -> no link',P.pilotMessage({name:'x'},{}).href===null&&P.pilotMessage({},null).href===null);
+t('bad email rejected',P.pilotMessage({}, {email:'nope'}).href===null);
+t('short whatsapp rejected',P.pilotMessage({}, {whatsapp:'123'}).href===null);
+t('fields length-capped',P.pilotMessage({name:'x'.repeat(500),note:'y'.repeat(5000)},{email:'a@b.co'}).text.length<700);
+t('injection in subject impossible (subject fixed)',!/\bbcc=/i.test(P.pilotMessage({name:'a&bcc=evil@x.com'},{email:'a@b.co'}).href.split('?')[1].split('&body')[0]));
+console.log(bad?'FAILED '+bad:'ALL PASS');process.exit(bad?1:0);

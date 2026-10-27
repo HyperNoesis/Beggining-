@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');
+const ctx={window:{},document:{},indexedDB:{},localStorage:{}};ctx.window=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/storage.js'),'utf8').replace("const cfg = window.VS && window.VS.config;","const cfg = null;").replace(/new window\.VS\.LocalStorageProvider\(openDB\)/,"{}"),ctx);
+const pick=ctx.VS.pickRecorderMime;let bad=0;const t=(n,g,w)=>{const ok=g===w;if(!ok)bad++;console.log((ok?'PASS ':'FAIL ')+n+' -> '+JSON.stringify(g))};
+const MR=(ok)=>({isTypeSupported:(m)=>ok.includes(m)});
+t('chrome: vp9 first',pick(MR(['video/webm;codecs=vp9,opus','video/webm'])),'video/webm;codecs=vp9,opus');
+t('no vp9: falls to vp8',pick(MR(['video/webm;codecs=vp8,opus'])),'video/webm;codecs=vp8,opus');
+t('iPhone-style: mp4 only',pick(MR(['video/mp4'])),'video/mp4');
+t('nothing supported: empty string (browser default)',pick(MR([])),'');
+t('no MediaRecorder at all',pick(null),'');
+t('throwing isTypeSupported is safe',pick({isTypeSupported(){throw new Error('x')}}),'');
+t('ext mp4',ctx.VS.extForMime('video/mp4;codecs=avc1'),'mp4');t('ext webm',ctx.VS.extForMime('video/webm'),'webm');
+process.exit(bad?1:0);

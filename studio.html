@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Studio</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* Studio owns its own chrome (topbar/tool-rail/transport) — the shared
+     app sidebar and mobile nav stay out of the way here, but nav-root still
+     renders the command palette and gates the page on auth. */
+  #nav-root .sidebar, #nav-root .mobile-topbar, #nav-root .bottom-tabbar { display: none; }
+</style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <a class="skip-link" href="#previewFrame">Skip to preview</a>
+  <div class="studio-shell" id="studioShell">
+    <div class="studio-topbar">
+      <a href="home.html" class="back-home" id="backHomeLink"><span id="backHomeIcon"></span><span>Home</span></a>
+      <div class="brand-mini">
+        <img src="assets/logo-mark.png" alt="Rejuvini">
+        <span>Genesis</span>
+      </div>
+      <div class="session-name studio-session">
+        <span id="sessionLabel">Studio session</span>
+        <span class="pill" id="saveState">Ready</span>
+      </div>
+      <div class="studio-quick-actions">
+        <button class="studio-top-action" id="quickRecordBtn" title="Start camera / record"><span class="dot"></span><span class="btn-label">Record</span></button>
+        <button class="studio-top-action" id="quickLiveBtn" title="Go to Live streaming"><span class="dot cyan"></span><span class="btn-label">Go Live</span></button>
+      </div>
+      <div class="status-cluster">
+        <span class="pill off" id="camPill"><span class="dot"></span>Camera</span>
+        <span class="pill off" id="micPill"><span class="dot"></span>Mic</span>
+        <a href="settings.html" class="icon-btn" title="Settings" id="settingsIconLink"></a>
+      </div>
+    </div>
+
+    <div class="studio-body" id="studioBody">
+      <!-- LEFT: tool rail -->
+      <div class="tool-rail" id="toolRail" role="tablist" aria-label="Studio tools">
+        <button class="tool-tab active" data-target="panel-env" title="Environment" role="tab" aria-selected="true"><span class="tab-label">Environment</span></button>
+        <button class="tool-tab" data-target="panel-looks" title="Looks" role="tab" aria-selected="false"><span class="tab-label">Looks</span></button>
+        <button class="tool-tab" data-target="panel-show" title="Show" role="tab" aria-selected="false"><span class="tab-label">Show</span></button>
+        <button class="tool-tab" data-target="panel-audio" title="Audio" role="tab" aria-selected="false"><span class="tab-label">Audio</span></button>
+        <button class="tool-tab" data-target="panel-camera" title="Camera &amp; audio" role="tab" aria-selected="false"><span class="tab-label">Camera &amp; audio</span></button>
+        <button class="tool-tab" data-target="panel-composition" title="Framing" role="tab" aria-selected="false"><span class="tab-label">Framing</span></button>
+        <button class="tool-tab" data-target="panel-realism" title="Realism" role="tab" aria-selected="false"><span class="tab-label">Realism</span></button>
+        <button class="tool-tab" data-target="panel-refine" title="Refine mask" role="tab" aria-selected="false"><span class="tab-label">Refine mask</span></button>
+        <button class="tool-tab" data-target="panel-graphics" title="Graphics" role="tab" aria-selected="false"><span class="tab-label">Graphics</span></button>
+        <button class="tool-tab" data-target="panel-prompter" title="Teleprompter" role="tab" aria-selected="false"><span class="tab-label">Prompter</span></button>
+        <button class="tool-tab" data-target="panel-captions" title="Captions" role="tab" aria-selected="false"><span class="tab-label">Captions</span></button>
+        <button class="tool-tab" data-target="panel-content" title="Content overlay" role="tab" aria-selected="false"><span class="tab-label">Content</span></button>
+        <button class="tool-tab" data-target="panel-templates" title="Templates" role="tab" aria-selected="false"><span class="tab-label">Templates</span></button>
+        <button class="tool-tab" data-target="panel-quality" title="Quality" role="tab" aria-selected="false"><span class="tab-label">Quality</span></button>
+        <button class="tool-tab" data-target="panel-recordings" title="Recordings" role="tab" aria-selected="false"><span class="tab-label">Recordings</span></button>
+        <button class="tool-tab" data-target="panel-live" title="Live streaming" role="tab" aria-selected="false"><span class="tab-label">Go Live</span></button>
+        <button class="tool-tab" data-target="panel-advanced" title="Advanced" role="tab" aria-selected="false"><span class="tab-label">Advanced</span></button>
+      </div>
+
+      <!-- CENTER: live preview -->
+      <div class="preview-area">
+        <div class="preview-frame" id="previewFrame">
+          <video id="video" playsinline muted></video>
+          <canvas id="canvas" width="640" height="480" aria-label="Live studio preview"></canvas>
+          <canvas id="guideCanvas" class="guide-canvas" width="640" height="480" aria-hidden="true"></canvas>
+          <canvas id="brushCanvas" class="brush-canvas" width="640" height="480" aria-hidden="true" style="display:none;"></canvas>
+          <canvas id="annotateCanvas" class="annotate-canvas" width="640" height="480" aria-hidden="true" style="display:none;"></canvas>
+
+          <div class="preview-hud top-right" id="previewHud">
+            <span class="pill" id="qualityHud">Balanced</span>
+            <span class="pill" id="renderHud">Local</span>
+          </div>
+
+          <div class="preview-overlay" id="previewOverlay">
+            <div id="overlayIris"></div>
+            <h3 id="overlayTitle">Ready when you are</h3>
+            <p id="overlaySub">Start your camera to preview the studio composite live. Nothing is recorded until you hit Record.</p>
+            <button class="btn primary" id="startBtn">Start Camera</button>
+            <a href="environments.html" id="previewEnvLink" style="margin-top:10px; font-size:12.5px; color:var(--text-dim); text-decoration:underline; display:block; max-width:100%; white-space:normal;">Browse environments first</a>
+          </div>
+
+          <div class="rec-indicator" id="recIndicator"><span class="dot"></span><span id="recIndicatorTime">REC 0:00</span></div>
+          <div id="prompter" aria-live="off" style="display:none; position:absolute; left:6%; right:6%; top:4%; height:46%; overflow:hidden; z-index:8; background:rgba(0,0,0,0.62); color:#fff; border-radius:12px; padding:10px 14px; pointer-events:none; line-height:1.35; font-family:system-ui,sans-serif; text-align:center;"><div id="prompterBody" style="white-space:pre-wrap; padding:20% 0 60%;"></div></div>
+          <p class="preview-hint" id="previewHint">Camera off · Start when you're ready</p>
+          <div class="caption-bar" id="captionBar" style="display:none;" aria-live="polite"></div>
+          <div class="degrade-toast" id="degradeBanner"></div>
+          <button class="flip-cam-btn" id="flipCamBtn" title="Switch camera" aria-label="Switch front/back camera" style="display:none;">⟲</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: control panel -->
+      <div class="control-panel">
+
+        <div class="control-section active" id="panel-env">
+          <h3>Choose environment</h3>
+          <div id="envMiniGrid" class="env-mini-grid"></div>
+          <select id="envSelect" style="display:none;"></select>
+
+          <h3>Custom background</h3>
+          <div class="upload-card" id="uploadCardTrigger">
+            <span id="uploadIconSlot"></span>
+            <span>Upload an image</span>
+          </div>
+          <input type="file" id="uploadBg" accept="image/*">
+
+          <h3>Studio Scene</h3>
+          <button type="button" class="btn primary sm full" id="sceneWizardBtn" style="margin-bottom:8px;">Scene Wizard (5 quick steps)</button>
+          <label class="toggle-row">
+            <input type="checkbox" id="sceneToggle">
+            <span>Sit inside the scene (desk in front of me)</span>
+          </label>
+          <p class="text-dim" style="font-size:11.5px; margin:4px 0 8px;">Puts a desk or table from the picture in front of you, matches the light and adds a soft shadow, so you look like you are really there.</p>
+          <div id="sceneControls" style="display:none;">
+            <label class="toggle-row">
+              <input type="checkbox" id="sceneDeskOn" checked>
+              <span>Desk hides my lower body</span>
+            </label>
+            <div class="field"><label for="sceneDeskY">Desk edge height <span id="sceneDeskYVal"></span></label>
+              <input type="range" id="sceneDeskY" min="0.35" max="0.95" step="0.005" value="0.70" aria-label="Desk edge height"></div>
+            <div class="field"><label for="sceneTilt">Desk tilt <span id="sceneTiltVal"></span></label>
+              <input type="range" id="sceneTilt" min="-0.25" max="0.25" step="0.005" value="0" aria-label="Desk tilt"></div>
+            <div class="field"><label for="sceneBow">Desk curve <span id="sceneBowVal"></span></label>
+              <input type="range" id="sceneBow" min="-0.12" max="0.12" step="0.005" value="0" aria-label="Desk curve"></div>
+            <div class="field"><label for="sceneFeather">Desk edge softness <span id="sceneFeatherVal"></span></label>
+              <input type="range" id="sceneFeather" min="0" max="30" step="1" value="6" aria-label="Desk edge softness"></div>
+            <div class="field"><label for="sceneScale">My size <span id="sceneScaleVal"></span></label>
+              <input type="range" id="sceneScale" min="0.35" max="1.2" step="0.01" value="0.72" aria-label="My size"></div>
+            <div class="field"><label for="sceneX">Left / right <span id="sceneXVal"></span></label>
+              <input type="range" id="sceneX" min="-0.4" max="0.4" step="0.005" value="0" aria-label="Left or right position"></div>
+            <div class="field"><label for="sceneY">Up / down <span id="sceneYVal"></span></label>
+              <input type="range" id="sceneY" min="-0.3" max="0.3" step="0.005" value="0" aria-label="Up or down position"></div>
+            <div class="field"><label for="sceneLight">Light on me <span id="sceneLightVal"></span></label>
+              <input type="range" id="sceneLight" min="0" max="1" step="0.05" value="0.5" aria-label="Light on me"></div>
+            <div class="field"><label for="sceneLightSide">Light comes from</label>
+              <select id="sceneLightSide" aria-label="Light direction">
+                <option value="auto" selected>Auto (match the scene)</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select></div>
+            <div class="field"><label for="sceneShadow">Shadow behind me <span id="sceneShadowVal"></span></label>
+              <input type="range" id="sceneShadow" min="0" max="1" step="0.05" value="0.5" aria-label="Shadow strength"></div>
+            <div class="field"><label for="sceneSoft">Background softness <span id="sceneSoftVal"></span></label>
+              <input type="range" id="sceneSoft" min="0" max="1" step="0.05" value="0.25" aria-label="Background softness"></div>
+            <button class="btn ghost sm full" id="sceneAutoBtn" type="button">Auto-fit this scene</button>
+            <button class="btn ghost sm full" id="sceneCopyPromptBtn" type="button" style="margin-top:6px;">Copy an AI prompt for a matching scene</button>
+            <div id="sceneStatus" class="honesty-note" style="margin-top:8px;"></div>
+          </div>
+
+          <h3>Create a world</h3>
+          <div class="field">
+            <input type="text" id="genPrompt" placeholder="Describe the environment...">
+          </div>
+          <label class="toggle-row">
+            <input type="checkbox" id="genSceneMode" checked>
+            <span>Design it for sitting behind a desk</span>
+          </label>
+          <button id="genBtn" class="btn primary full">Create World</button>
+          <p class="text-dim" style="font-size:11.5px; margin-top:6px;">Your description is sent to Pollinations.ai to generate the image.</p>
+        </div>
+
+        <div class="control-section" id="panel-camera">
+          <h3>Camera</h3>
+          <div class="field">
+            <select id="cameraSelect"><option value="">Default</option></select>
+          </div>
+          <h3>Microphone</h3>
+          <div class="field">
+            <select id="micSelect"><option value="">Default</option></select>
+          </div>        </div>
+
+        <div class="control-section" id="panel-composition">
+          <h3>Aspect ratio</h3>
+          <div class="seg-control" id="aspectSegControl" role="radiogroup" aria-label="Aspect ratio"></div>
+
+          <h3>Zoom &amp; pan</h3>
+          <div class="field">
+            <label for="zoomRange">Zoom <span id="zoomVal">1.0x</span></label>
+            <input type="range" id="zoomRange" min="1" max="3" step="0.05" value="1" aria-label="Zoom level">
+          </div>
+          <div class="field">
+            <label for="panXRange">Pan horizontal</label>
+            <input type="range" id="panXRange" min="0" max="1" step="0.01" value="0.5" aria-label="Horizontal pan">
+          </div>
+          <div class="field">
+            <label for="panYRange">Pan vertical</label>
+            <input type="range" id="panYRange" min="0" max="1" step="0.01" value="0.5" aria-label="Vertical pan">
+          </div>
+          <button class="btn ghost sm full" id="resetPanBtn" type="button">Reset pan</button>
+
+          <h3>Guides</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="guidesToggle">
+            <span>Safe-area &amp; rule-of-thirds guides</span>
+          </label>        </div>
+
+        <div class="control-section" id="panel-realism">
+          <h3>Make it believable</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="realismToggle" checked>
+            <span>One-click realism pass</span>
+          </label>
+          <div class="field">
+            <label for="realismIntensity">Intensity <span id="realismIntensityVal">70%</span></label>
+            <input type="range" id="realismIntensity" min="0" max="100" step="5" value="70" aria-label="Realism intensity">
+          </div>
+
+          <h3>Techniques</h3>
+          <label class="toggle-row"><input type="checkbox" id="toneMatchToggle" checked><span>White balance / exposure match</span></label>
+          <label class="toggle-row"><input type="checkbox" id="shadowToggle" checked><span>Contact shadow</span></label>
+          <label class="toggle-row"><input type="checkbox" id="lightWrapToggle" checked><span>Light wrap / rim light</span></label>
+          <label class="toggle-row"><input type="checkbox" id="grainToggle" checked><span>Grain match</span></label>
+
+          <h3>Compare</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="abPreviewToggle">
+            <span>A/B split preview (left: off, right: on)</span>
+          </label>        </div>
+
+        <div class="control-section" id="panel-refine">
+          <label class="toggle-row">
+            <input type="checkbox" id="autoStartToggle" checked>
+            <span>Start the camera automatically when Studio opens</span>
+          </label>
+          <label class="toggle-row">
+            <input type="checkbox" id="batterySaverToggle">
+            <span>Battery saver: about 20 frames per second and a lighter cutout (cooler phone, longer battery)</span>
+          </label>
+          <h3>Segmentation model</h3>
+          <div class="field">
+            <label for="modelSelect">Model</label>
+            <select id="modelSelect" aria-label="Segmentation model">
+              <option value="auto" selected>Auto (recommended)</option>
+              <option value="mediapipe">MediaPipe (lightest, Apache-2.0)</option>
+              <option value="modnet">MODNet (best matting, Apache-2.0)</option>
+              <option value="rvm">RVM (personal use only, GPL-3.0)</option>
+            </select>
+          </div>
+          <button class="btn ghost sm full" id="rebenchBtn" type="button">Re-run speed test</button>
+          <div id="modelBenchNote" class="honesty-note" style="margin-top:8px;"></div>
+          <h3>Sharp edges (GPU)</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="sharpMatteToggle" checked>
+            <span>Sharp GPU edges (recommended)</span>
+          </label>
+          <div class="field">
+            <label for="sharpQuality">Edge quality</label>
+            <select id="sharpQuality" aria-label="Sharp edge quality">
+              <option value="1" selected>Fast (best for phones)</option>
+              <option value="2">High (needs a strong GPU)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="crispRange">Edge crispness <span id="crispVal">0.50</span></label>
+            <input type="range" id="crispRange" min="0" max="1" step="0.05" value="0.5" aria-label="Edge crispness">
+          </div>
+          <div class="field">
+            <label for="despillRange">Edge colour cleanup <span id="despillVal">0.60</span></label>
+            <input type="range" id="despillRange" min="0" max="1" step="0.05" value="0.6" aria-label="Edge colour cleanup">
+          </div>
+          <h3>Clean plate (fixed camera)</h3>
+          <button class="btn ghost sm full" id="capturePlateBtn" type="button">Capture empty room (5s countdown)</button>
+          <button class="btn ghost sm full" id="clearPlateBtn" type="button" style="margin-top:6px;">Clear plate</button>
+          <div id="matteStatus" class="honesty-note" style="margin-top:8px;">Checking GPU support…</div>
+          <h3>Edge refinement</h3>
+          <div class="field">
+            <label for="despeckleRange">Despeckle <span id="despeckleVal">1px</span></label>
+            <input type="range" id="despeckleRange" min="0" max="5" step="1" value="1" aria-label="Despeckle amount">
+          </div>          <div class="field">
+            <label for="featherRange">Edge feather <span id="featherVal">2px</span></label>
+            <input type="range" id="featherRange" min="0" max="8" step="1" value="2" aria-label="Edge feather amount">
+          </div>
+          <div class="field">
+            <label for="smoothingRange">Motion smoothing <span id="smoothingVal">0.55</span></label>
+            <input type="range" id="smoothingRange" min="0" max="0.9" step="0.05" value="0.55" aria-label="Temporal mask smoothing">
+          </div>
+          <h3>Low light</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="lowLightBoostToggle" checked>
+            <span>Auto-brighten for the segmentation model</span>
+          </label>
+          <h3>Manual correction</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="correctionToggle">
+            <span>Enable brush correction</span>
+          </label>
+          <div class="seg-control" id="brushModeControl" role="radiogroup" aria-label="Brush mode">
+            <button type="button" class="seg-btn active" data-mode="add" role="radio" aria-checked="true"><span class="seg-name">Include (keep)</span></button>
+            <button type="button" class="seg-btn" data-mode="erase" role="radio" aria-checked="false"><span class="seg-name">Exclude (remove)</span></button>
+          </div>
+          <div class="field">
+            <label for="brushSizeRange">Brush size <span id="brushSizeVal">24px</span></label>
+            <input type="range" id="brushSizeRange" min="6" max="80" step="2" value="24" aria-label="Brush size">
+          </div>
+          <button class="btn ghost sm full" id="clearCorrectionsBtn" type="button">Clear corrections</button>        </div>
+
+        <div class="control-section" id="panel-audio">
+          <h3>Audio</h3>
+          <p class="honesty-note">Processing runs on this device. Recording and Go Live use the processed sound. Use headphones if you hear echo.</p>
+          <div class="field"><label for="audioPreset">Sound</label><select id="audioPreset" aria-label="Sound preset"></select></div>
+          <label class="toggle-row"><input type="checkbox" id="audioNs" checked><span>Reduce background noise (your browser's built-in filter)</span></label>
+          <label class="toggle-row"><input type="checkbox" id="audioEc" checked><span>Remove echo</span></label>
+          <h3>Level</h3>
+          <div aria-hidden="true" style="height:14px;background:#1b1d26;border-radius:7px;overflow:hidden;"><div id="audioBar" style="height:100%;width:0;background:#3ecf8e;transition:width .08s linear;"></div></div>
+          <p id="audioReadout" class="honesty-note" aria-live="off">Start the camera to see your level.</p>
+          <p id="audioNote" class="honesty-note" aria-live="polite"></p>
+          <h3>Music bed</h3>
+          <p class="honesty-note">Pick your own music file. Only use music you have the right to broadcast. It loops, goes into your recording and stream, and dips while you talk.</p>
+          <div class="field"><label for="mixMusicFile">Music file</label><input type="file" id="mixMusicFile" accept="audio/*"></div>
+          <div style="display:flex;gap:8px;"><button class="btn primary" id="mixPlay" type="button" style="min-height:44px;flex:1;">Play music</button><button class="btn ghost" id="mixStop" type="button" style="min-height:44px;flex:1;">Stop</button></div>
+          <div class="field"><label for="mixVol">Music volume</label><input type="range" id="mixVol" min="0" max="100" value="35"></div>
+          <label class="toggle-row"><input type="checkbox" id="mixDenoise"><span>Remove background noise (AI, on this device)</span></label>
+          <p id="mixDenoiseNote" class="honesty-note" role="status" style="margin-top:0;border:0;padding-top:4px;">Off by default. Works best for fans, hum and keyboard noise. Adds about 10 ms delay and a little battery use. Not yet tried on a phone.</p>
+          <label class="toggle-row"><input type="checkbox" id="mixDuck" checked><span>Lower the music while I talk</span></label>
+          <div class="field"><label for="mixDuckDb">How much to lower it</label><input type="range" id="mixDuckDb" min="3" max="30" value="12"></div>
+          <label class="toggle-row"><input type="checkbox" id="mixMonitor"><span>Let me hear music and sounds (use headphones, or you will get echo)</span></label>
+          <p id="mixNote" class="honesty-note" role="status"></p>
+          <h3>Soundboard</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="btn ghost" data-sb="ding" type="button" style="min-height:44px;">Ding</button><button class="btn ghost" data-sb="whoosh" type="button" style="min-height:44px;">Whoosh</button>
+            <button class="btn ghost" data-sb="sting" type="button" style="min-height:44px;">Sting</button><button class="btn ghost" data-sb="buzzer" type="button" style="min-height:44px;">Buzzer</button>
+          </div>
+          <p class="honesty-note">Your own sounds (kept only until you close the page):</p>
+          <div id="mixPads" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+          <button class="btn ghost" id="audioTest" type="button" style="min-height:44px;width:100%;">Mic test: record 4 s and play back</button>
+          <audio id="audioTestPlayer" controls style="width:100%;margin-top:8px;display:none;"></audio>
+          <p class="honesty-note">Not built yet: AI noise removal (RNNoise), per-guest audio, separate audio export.</p>
+        </div>
+
+        <div class="control-section" id="panel-looks">
+          <h3>One-tap looks</h3>
+          <p class="honesty-note">A look sets the background, framing, realism and broadcast graphics together. It never touches your camera, and you can undo it. Audio presets arrive with the audio tools (not built yet).</p>
+          <div id="looksList" style="display:grid; gap:8px;"></div>
+          <button class="btn ghost" id="looksUndo" type="button" style="min-height:44px; margin-top:10px; width:100%;" disabled>Undo last look</button>
+          <p id="looksStatus" class="honesty-note" aria-live="polite"></p>
+
+          <h4 style="margin:16px 0 4px;">Colour grade</h4>
+          <p class="honesty-note">Changes the colour of YOU (not the room). These are tone and colour grades. You can also load your own .cube LUT below.</p>
+          <div id="gradeList" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+          <div class="field"><label for="gradeStrength">Grade strength</label><input type="range" id="gradeStrength" min="0" max="100" step="5" value="100"></div>
+          <div class="field"><label for="gradePhoto">Match the colours of a photo</label><input type="file" id="gradePhoto" accept="image/*"></div>
+          <p id="gradeNote" class="honesty-note" aria-live="polite"></p>
+          <label class="toggle-row"><input type="checkbox" id="autoAssist"><span>Auto brightness and white balance (gentle, slow)</span></label>
+          <p class="honesty-note">Looks at your camera about once a second and nudges you toward even light and neutral colour. It cannot fix a very dark room.</p>
+          <div class="field"><label for="lutFile">Your own colour LUT (.cube, 3D)</label><input type="file" id="lutFile" accept=".cube,text/plain"></div>
+          <div class="field"><label for="lutAmount">LUT amount</label><input type="range" id="lutAmount" min="0" max="100" step="5" value="100"></div>
+          <button class="btn ghost" id="lutClear" type="button" style="min-height:44px;width:100%;">Remove LUT</button>
+          <p id="lutNote" class="honesty-note" aria-live="polite"></p>
+          <h4 style="margin:16px 0 4px;">Skin smoothing</h4>
+          <div class="field"><label for="skinAmount">Smoothing (0 = off)</label><input type="range" id="skinAmount" min="0" max="100" step="5" value="0"></div>
+          <p class="honesty-note">Off by default. Softens skin-coloured areas only; a high setting can look fake. Its cost on a phone is not measured yet: lower it if the video gets choppy.</p>
+          <h4 style="margin:16px 0 4px;">Auto-framing</h4>
+          <label class="toggle-row"><input type="checkbox" id="autoFrame"><span>Keep me centred at a steady size</span></label>
+          <p class="honesty-note">Moves and zooms the crop slowly (never snaps). While it is on, the zoom and pan sliders are driven by it.</p>
+          <button class="btn ghost" id="gradeReset" type="button" style="min-height:44px;width:100%;">Reset colour, skin and framing</button>
+        </div>
+
+        <div class="control-section" id="panel-show">
+          <h3>Show (run of show)</h3>
+          <p class="honesty-note">A list of steps. Tap NEXT (or press Space, the right arrow or Page Down; many presentation clickers send Page Down) and each step can change your lower third, banner, card, ticker, look and audio at once. Back and tapping an earlier step rebuild the on-screen graphics from your steps, so a card you no longer want goes away.</p>
+          <div id="showNow" class="show-now" aria-live="polite"></div>
+          <div style="display:flex; gap:8px; margin:8px 0;">
+            <button class="btn ghost" id="showBack" type="button" style="min-height:56px;flex:1;">Back</button>
+            <button class="btn primary" id="showNext" type="button" style="min-height:56px;flex:3;font-size:1.1rem;">Start show</button>
+          </div>
+          <label class="toggle-row"><input type="checkbox" id="showKeys"><span>Let keys and clickers control the show (Space, arrows, Page Up and Down)</span></label>
+          <p id="showStatus" class="honesty-note" aria-live="polite"></p>
+          <h3>Steps</h3>
+          <ol id="showList" style="list-style:none;padding:0;margin:0;"></ol>
+          <div style="display:flex; gap:8px; margin:8px 0;">
+            <button class="btn ghost" id="showAdd" type="button" style="min-height:44px;flex:1;">Add a step</button>
+            <button class="btn ghost" id="showCapture" type="button" style="min-height:44px;flex:1;">Save what is on screen as a step</button>
+          </div>
+          <div id="showEditor" class="show-editor" hidden>
+            <h3 id="showEditorTitle">Edit step</h3>
+            <div class="field"><label for="seLabel">Step name</label><input type="text" id="seLabel" maxlength="60" style="width:100%;"></div>
+            <div class="field"><label for="seSay">Note to yourself (only you see it)</label><input type="text" id="seSay" maxlength="160" style="width:100%;"></div>
+            <div class="field"><label for="seLt">Lower third</label><select id="seLt"><option value="">Leave as it is</option><option value="show">Show</option><option value="hide">Hide</option></select></div>
+            <div class="field"><label for="seLtName">Name</label><input type="text" id="seLtName" maxlength="60" style="width:100%;"></div>
+            <div class="field"><label for="seLtTitle">Title or topic</label><input type="text" id="seLtTitle" maxlength="90" style="width:100%;"></div>
+            <div class="field"><label for="seLtSecs">Hide it by itself after (seconds, 0 = stay)</label><input type="number" id="seLtSecs" min="0" max="600" value="6" style="width:100%;"></div>
+            <div class="field"><label for="seBanner">Breaking banner</label><select id="seBanner"><option value="">Leave as it is</option><option value="show">Show</option><option value="hide">Hide</option></select></div>
+            <div class="field"><label for="seBannerText">Headline</label><input type="text" id="seBannerText" maxlength="140" style="width:100%;"></div>
+            <div class="field"><label for="seCard">Full-screen card</label><select id="seCard"><option value="">Leave as it is</option><option value="show">Show</option><option value="hide">Hide</option></select></div>
+            <div class="field"><label for="seCardTitle">Card big text</label><input type="text" id="seCardTitle" maxlength="80" style="width:100%;"></div>
+            <div class="field"><label for="seCardSub">Card smaller text</label><input type="text" id="seCardSub" maxlength="140" style="width:100%;"></div>
+            <div class="field"><label for="seTicker">Ticker</label><select id="seTicker"><option value="">Leave as it is</option><option value="show">On</option><option value="hide">Off</option></select></div>
+            <div class="field"><label for="seTickerText">Ticker text (blank = keep)</label><input type="text" id="seTickerText" maxlength="300" style="width:100%;"></div>
+            <div class="field"><label for="seCount">Countdown (minutes, blank = none)</label><input type="number" id="seCount" min="0.5" max="1440" step="0.5" style="width:100%;"></div>
+            <div class="field"><label for="seLook">Look</label><select id="seLook"><option value="">Leave as it is</option></select></div>
+            <div class="field"><label for="seAudio">Audio style</label><select id="seAudio"><option value="">Leave as it is</option></select></div>
+            <label class="toggle-row"><input type="checkbox" id="seScene"><span>Use the scene I have selected now</span></label>
+            <div style="display:flex; gap:8px; margin-top:8px;"><button class="btn primary" id="seSave" type="button" style="min-height:44px;flex:2;">Save step</button><button class="btn ghost" id="seCancel" type="button" style="min-height:44px;flex:1;">Cancel</button></div>
+          </div>
+          <h3>Share or back up your show</h3>
+          <div style="display:flex; gap:8px; margin:8px 0;"><button class="btn ghost" id="showExport" type="button" style="min-height:44px;flex:1;">Copy show as text</button><button class="btn ghost" id="showImport" type="button" style="min-height:44px;flex:1;">Load from text</button></div>
+          <textarea id="showJson" rows="4" placeholder="Paste a show here, then tap Load from text" style="width:100%;" hidden></textarea>
+          <button class="btn ghost" id="showClear" type="button" style="min-height:44px;width:100%;margin-top:8px;">Remove all steps</button>
+        </div>
+
+        <div class="control-section" id="panel-graphics">
+          <h3>Broadcast graphics</h3>
+          <p class="honesty-note">These appear in your recording and live stream. Keys 1 to 9 trigger rundown items, H hides the lower third.</p>
+          <div class="field"><label for="gfxName">Name</label><input type="text" id="gfxName" maxlength="60" style="width:100%;"></div>
+          <div class="field"><label for="gfxTitle">Title or topic</label><input type="text" id="gfxTitle" maxlength="90" style="width:100%;"></div>
+          <div class="field"><label for="gfxAccent">Colour</label><select id="gfxAccent"></select></div>
+          <div style="display:flex; gap:8px; margin:8px 0;">
+            <button class="btn primary" id="gfxLtToggle" type="button" style="min-height:44px;flex:2;">Show lower third</button>
+            <button class="btn ghost" id="gfxAddRundown" type="button" style="min-height:44px;flex:1;">Add to rundown</button>
+          </div>
+          <h3>Rundown</h3>
+          <ul id="gfxRundown" style="list-style:none;padding:0;margin:0;"></ul>
+          <h3>News ticker</h3>
+          <label class="toggle-row"><input type="checkbox" id="gfxTickerOn"><span>Show the ticker</span></label>
+          <div class="field"><label for="gfxTickerText">Ticker text</label><input type="text" id="gfxTickerText" maxlength="300" style="width:100%;"></div>
+          <div class="field"><label for="gfxTickerSpeed">Ticker speed</label><input type="range" id="gfxTickerSpeed" min="30" max="260" step="10" value="90"></div>
+          <h3>Tags</h3>
+          <label class="toggle-row"><input type="checkbox" id="gfxClock"><span>Clock (top right)</span></label>
+          <label class="toggle-row"><input type="checkbox" id="gfxLive"><span>LIVE tag (top left). It is a label only; it does not start a stream.</span></label>
+          <h3>Lower-third style</h3>
+          <div class="field"><label for="gfxTemplate">Style</label><select id="gfxTemplate"></select></div>
+          <h3>Breaking banner</h3>
+          <div class="field"><label for="gfxBannerText">Headline</label><input type="text" id="gfxBannerText" maxlength="140" style="width:100%;"></div>
+          <button class="btn ghost" id="gfxBannerToggle" type="button" style="min-height:44px;width:100%;">Show banner</button>
+          <h3>Full-screen card</h3>
+          <p class="honesty-note">Covers the picture, for "Starting soon", "Be right back" or a thank-you. Add a web address to show a QR code on it.</p>
+          <div class="field"><label for="gfxCardTitle">Big text</label><input type="text" id="gfxCardTitle" maxlength="80" style="width:100%;"></div>
+          <div class="field"><label for="gfxCardSub">Smaller text</label><input type="text" id="gfxCardSub" maxlength="140" style="width:100%;"></div>
+          <div class="field"><label for="gfxCardQr">QR code address (optional)</label><input type="text" id="gfxCardQr" maxlength="200" placeholder="https://" style="width:100%;" inputmode="url"></div>
+          <button class="btn ghost" id="gfxCardToggle" type="button" style="min-height:44px;width:100%;">Show card</button>
+          <h3>Countdown</h3>
+          <div class="field"><label for="gfxCdLabel">Label</label><input type="text" id="gfxCdLabel" maxlength="24" value="Starting in" style="width:100%;"></div>
+          <div class="field"><label for="gfxCdMin">Minutes</label><input type="number" id="gfxCdMin" min="0.5" max="1440" step="0.5" value="5" style="width:100%;"></div>
+          <div style="display:flex; gap:8px;"><button class="btn primary" id="gfxCdStart" type="button" style="min-height:44px;flex:2;">Start countdown</button><button class="btn ghost" id="gfxCdStop" type="button" style="min-height:44px;flex:1;">Stop</button></div>
+          <h3>Social handle, QR and channel name</h3>
+          <label class="toggle-row"><input type="checkbox" id="gfxSocialOn"><span>Show my handle (bottom right)</span></label>
+          <div class="field"><label for="gfxSocialText">Handle</label><input type="text" id="gfxSocialText" maxlength="40" style="width:100%;"></div>
+          <label class="toggle-row"><input type="checkbox" id="gfxQrOn"><span>Show a QR code in the corner</span></label>
+          <div class="field"><label for="gfxQrText">QR address or text</label><input type="text" id="gfxQrText" maxlength="200" style="width:100%;" inputmode="url"></div>
+          <div class="field"><label for="gfxQrCaption">QR caption</label><input type="text" id="gfxQrCaption" maxlength="30" style="width:100%;"></div>
+          <p id="gfxQrNote" class="honesty-note"></p>
+          <label class="toggle-row"><input type="checkbox" id="gfxBugOn"><span>Show my channel name (top right)</span></label>
+          <div class="field"><label for="gfxBugText">Channel name</label><input type="text" id="gfxBugText" maxlength="24" style="width:100%;"></div>
+          <label class="toggle-row"><input type="checkbox" id="gfxBugLogo"><span>Include my logo (from the Templates tab) when I have one</span></label>
+          <h4 style="margin:16px 0 6px;">Brand kit</h4>
+          <p class="honesty-note">Upload your logo in the Templates tab first. Genesis reads its main colours on this device and uses them for every graphic. Black and white logos have no colour to read, so pick colours by hand.</p>
+          <button class="btn primary" id="brandFromLogo" type="button" style="min-height:44px;width:100%;">Make my graphics match my logo</button>
+          <div style="display:flex;gap:12px;margin:8px 0;align-items:center;">
+            <label style="flex:1;">Main colour<br><input type="color" id="brandPrimary" value="#5e6ad2" style="width:100%;min-height:44px;"></label>
+            <label style="flex:1;">Second colour<br><input type="color" id="brandSecondary" value="#2a2f66" style="width:100%;min-height:44px;"></label>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn ghost" id="brandUse" type="button" style="min-height:44px;flex:1;">Use brand colours everywhere</button>
+            <button class="btn ghost" id="brandOff" type="button" style="min-height:44px;flex:1;">Back to Blue</button>
+          </div>
+          <p id="brandNote" class="honesty-note" role="status"></p>
+          <h4 style="margin:16px 0 6px;">Safe area</h4>
+          <label class="toggle-row"><input type="checkbox" id="gfxGuides"><span>Show safe-area guides (only you see them)</span></label>
+          <label class="toggle-row"><input type="checkbox" id="gfxSafe"><span>Keep tags, QR, banner and scoreboard inside the safe area</span></label>
+          <p class="honesty-note">Some TVs, phones and apps crop the edges of a picture. The dashed line is 5% in from each edge: keep important words inside it.</p>
+          <h4 style="margin:16px 0 6px;">Scoreboard</h4>
+          <label class="toggle-row"><input type="checkbox" id="scOn"><span>Show the scoreboard (top left)</span></label>
+          <div style="display:flex;gap:8px;"><div class="field" style="flex:1;"><label for="scHome">Home team</label><input type="text" id="scHome" maxlength="14" style="width:100%;"></div><div class="field" style="flex:1;"><label for="scAway">Away team</label><input type="text" id="scAway" maxlength="14" style="width:100%;"></div></div>
+          <div class="field"><label for="scPeriod">Period or label (optional)</label><input type="text" id="scPeriod" maxlength="10" placeholder="1st half" style="width:100%;"></div>
+          <p id="scRead" style="font-weight:700;font-size:18px;margin:4px 0;" aria-live="polite"></p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="btn ghost" id="scHPlus" type="button" style="min-height:44px;">Home +1</button><button class="btn ghost" id="scAPlus" type="button" style="min-height:44px;">Away +1</button>
+            <button class="btn ghost" id="scHMinus" type="button" style="min-height:44px;">Home -1</button><button class="btn ghost" id="scAMinus" type="button" style="min-height:44px;">Away -1</button>
+          </div>
+          <label class="toggle-row"><input type="checkbox" id="scClockOn"><span>Show a game clock on the scoreboard</span></label>
+          <div style="display:flex;gap:8px;"><button class="btn ghost" id="scClockStart" type="button" style="min-height:44px;flex:1;">Start clock</button><button class="btn ghost" id="scClockStop" type="button" style="min-height:44px;flex:1;">Pause</button><button class="btn ghost" id="scClockReset" type="button" style="min-height:44px;flex:1;">Zero</button></div>
+          <button class="btn ghost" id="scReset" type="button" style="min-height:44px;width:100%;margin-top:8px;">Reset score to 0 - 0</button>
+          <button class="btn ghost" id="gfxClearAll" type="button" style="min-height:44px;width:100%;margin-top:10px;">Clear all graphics</button>
+        </div>
+
+        <div class="control-section" id="panel-prompter">
+          <h3>Teleprompter</h3>
+          <p class="honesty-note">Only you see this. It is never recorded or streamed.</p>
+          <label class="toggle-row"><input type="checkbox" id="prompterShow"><span>Show the teleprompter over the preview</span></label>
+          <div class="field"><label for="prompterScript">Your script</label><textarea id="prompterScript" rows="8" placeholder="Paste or type your script here" style="width:100%;"></textarea></div>
+          <div class="field"><label for="prompterFile">Or load a text file</label><input type="file" id="prompterFile" accept=".txt,text/plain"></div>
+          <p id="prompterInfo" class="honesty-note"></p>
+          <div class="field"><label for="prompterSpeed">Speed</label><input type="range" id="prompterSpeed" min="5" max="200" step="5" value="40"></div>
+          <div style="display:flex; gap:8px; margin:6px 0;">
+            <button class="btn ghost sm" id="prompterSlower" type="button" style="min-height:44px;flex:1;">Slower</button>
+            <button class="btn ghost sm" id="prompterFaster" type="button" style="min-height:44px;flex:1;">Faster</button>
+          </div>
+          <div class="field"><label for="prompterMode">Scrolling</label><select id="prompterMode"><option value="manual">Steady speed (manual)</option><option value="voice">Follow my voice (scrolls while I speak)</option><option value="words">Follow my words (browser speech service)</option></select></div>
+          <p id="prompterModeNote" class="honesty-note"></p>
+          <button class="btn ghost" id="prompterLearn" type="button" style="min-height:44px;width:100%;">Learn my reading pace</button>
+          <p id="prompterLearnNote" class="honesty-note"></p>
+          <div class="field"><label for="prompterSize">Text size</label><input type="range" id="prompterSize" min="18" max="72" step="2" value="34"></div>
+          <label class="toggle-row"><input type="checkbox" id="prompterMirror"><span>Mirror text (for a glass teleprompter)</span></label>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn primary" id="prompterToggle" type="button" style="min-height:44px;flex:2;">Start scrolling</button>
+            <button class="btn ghost" id="prompterReset" type="button" style="min-height:44px;flex:1;">Back to top</button>
+          </div>
+          <p class="honesty-note">Keys: Space start/pause, Up/Down speed.</p>
+          <h4 style="margin:14px 0 4px;">Phone remote</h4>
+          <p class="honesty-note">Control the prompter and the Show (NEXT / Back) from a second phone. It uses the signalling server in js/config.js; only commands travel through it, never your video or script.</p>
+          <button class="btn ghost" id="remoteStart" type="button" style="min-height:44px;width:100%;">Create remote link</button>
+          <p id="remoteStatus" class="honesty-note"></p>
+          <canvas id="remoteQr" width="200" height="200" style="display:none;background:#fff;border-radius:8px;margin:6px auto;"></canvas>
+          <input id="remoteLink" type="text" readonly style="display:none;width:100%;" aria-label="Remote link">
+        </div>
+
+        <div class="control-section" id="panel-captions">
+          <h3>Live captions</h3>
+          <label class="toggle-row">
+            <input type="checkbox" id="captionsToggle">
+            <span>Transcribe while recording or live</span>
+          </label>
+          <div id="captionsUnsupported" class="honesty-note" style="display:none;">
+            Live captions aren't supported in this browser yet — try Chrome or Edge.
+          </div>
+          <div id="captionsList" class="recordings-mini" style="margin-top:14px;"></div>        </div>
+
+        <div class="control-section" id="panel-content">
+          <h3>Content overlays</h3>          <div class="field">
+            <label for="layoutModeSelect">Layout (uses your first overlay above)</label>
+            <select id="layoutModeSelect">
+              <option value="default">Corner insets (default)</option>
+              <option value="sidebyside">Side-by-side</option>
+              <option value="bubble">Full content, presenter bubble</option>
+              <option value="cutout">Cutout — presenter over content</option>
+            </select>
+          </div>          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="upload-card" id="contentUploadTrigger" style="flex:1; min-width:120px;">
+              <span></span>
+              <span id="contentUploadLabel">Add image(s)</span>
+            </div>
+            <div class="upload-card" id="contentUploadPdfTrigger" style="flex:1; min-width:120px;">
+              <span></span>
+              <span>Add a PDF deck</span>
+            </div>
+            <div class="upload-card" id="contentUploadScreenTrigger" style="flex:1; min-width:120px;">
+              <span></span>
+              <span>Share your screen</span>
+            </div>
+          </div>
+          <input type="file" id="contentUpload" accept="image/*" multiple style="display:none;">
+          <input type="file" id="contentUploadPdf" accept="application/pdf" style="display:none;">
+          <div id="camSection" class="info-card" style="margin-top:14px;">
+            <h3 style="margin-top:0;">Second phone as a camera</h3>
+            <p class="honesty-note" style="margin-top:0;">Scan the code with another phone. Only video is sent, straight phone to phone. Works best on the same Wi-Fi. Sound is not sent.</p>
+            <button type="button" class="btn ghost full" id="camStart" style="min-height:44px;">Add a phone camera</button>
+            <p id="camStatus" class="honesty-note" role="status" aria-live="polite"></p>
+            <canvas id="camQr" width="200" height="200" style="display:none; margin:8px auto; background:#fff; border-radius:8px;" aria-label="QR code for the camera link"></canvas>
+            <input id="camLink" readonly style="display:none; width:100%;" aria-label="Camera link">
+            <div id="camPending" style="display:none; gap:8px; flex-wrap:wrap; margin-top:8px;"><span id="camPendingText" style="flex:1 1 100%;"></span><button type="button" class="btn full" id="camAccept" style="flex:1; min-height:44px;">Accept</button><button type="button" class="btn ghost full" id="camDecline" style="flex:1; min-height:44px;">Decline</button></div>
+            <div id="camLayouts" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
+          </div>
+          <div id="overlayList"></div>
+
+          <h3 style="margin-top:16px;">PiP presets</h3>          <div id="pipPresetList" style="display:flex; gap:8px;"></div>
+
+          <h3 style="margin-top:16px;">Director mode</h3>          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button type="button" class="btn ghost sm" id="directorAddCue">+ Add cue from current scene</button>
+            <span id="directorPosition" style="font-size:12.5px; color:var(--text-dim);">No cues yet</span>
+          </div>
+          <div id="directorCueList"></div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn ghost sm" id="directorBack" style="flex:1;">◀ Back</button>
+            <button type="button" class="btn ghost sm" id="directorNext" style="flex:1;">Next ▶</button>
+          </div>
+
+          <h3 style="margin-top:16px;">Live pointer / annotation</h3>          <label class="toggle-row">
+            <input type="checkbox" id="annotateToggle">
+            <span>Enable annotation</span>
+          </label>
+          <div class="seg-control" id="annotateModeControl" role="radiogroup" aria-label="Annotation mode">
+            <button type="button" class="seg-btn" data-mode="pointer" role="radio" aria-checked="false"><span class="seg-name">Pointer (laser)</span></button>
+            <button type="button" class="seg-btn active" data-mode="draw" role="radio" aria-checked="true"><span class="seg-name">Draw (persistent)</span></button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+            <div id="annotateColorControl" style="display:flex; gap:6px;">
+              <button type="button" class="annotate-swatch swatch-red active" data-color="#ff5b5b" aria-label="Red"></button>
+              <button type="button" class="annotate-swatch swatch-yellow" data-color="#f0bf00" aria-label="Yellow"></button>
+              <button type="button" class="annotate-swatch swatch-green" data-color="#3ddc84" aria-label="Green"></button>
+              <button type="button" class="annotate-swatch swatch-blue" data-color="#5e6ad2" aria-label="Blue"></button>
+              <button type="button" class="annotate-swatch swatch-white" data-color="#ffffff" aria-label="White"></button>
+            </div>
+            <button type="button" class="btn ghost sm" id="annotateClearBtn" style="margin-left:auto;">Clear drawing</button>
+          </div>
+        </div>
+
+        <div class="control-section" id="panel-templates">
+          <h3>Brand kit</h3>
+          <div class="field">
+            <label for="brandColorInput">Brand color</label>
+            <input type="color" id="brandColorInput" value="#5e6ad2" style="height:36px; padding:2px; cursor:pointer;">
+          </div>
+          <div class="upload-card" id="logoUploadTrigger">
+            <span></span>
+            <span id="logoFileLabel">Upload a logo (watermark)</span>
+          </div>
+          <input type="file" id="logoUpload" accept="image/*" style="display:none;">
+          <label class="toggle-row">
+            <input type="checkbox" id="watermarkToggle">
+            <span>Show logo watermark on preview + recordings</span>
+          </label>
+
+          <h3>Save current setup</h3>
+          <div class="field">
+            <label for="templateNameInput">Template name</label>
+            <input type="text" id="templateNameInput" placeholder="e.g. Weekly update look">
+          </div>
+          <button class="btn primary sm full" id="saveTemplateBtn" type="button">Save as template</button>
+
+          <h3>Saved templates</h3>
+          <div id="templateList"></div>        </div>
+
+        <div class="control-section" id="panel-quality">
+          <h3>Quality mode</h3>
+          <div class="seg-control" id="qualitySegControl"></div>
+          <p class="honesty-note" id="deviceTierNote" style="display:none; margin-top:0;"></p>
+          <select id="qualitySelect" style="display:none;">
+            <option value="fast">fast</option>
+            <option value="balanced" selected>balanced</option>
+            <option value="quality">quality</option>
+            <option value="ultra">ultra</option>
+          </select>
+          <h3>Export</h3>
+          <div class="field">
+            <label for="bitrateSelect">Bitrate</label>
+            <select id="bitrateSelect">
+              <option value="4000000">Standard (4 Mbps)</option>
+              <option value="8000000" selected>High (8 Mbps)</option>
+              <option value="16000000">Max (16 Mbps)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="framerateSelect">Frame rate</label>
+            <select id="framerateSelect">
+              <option value="24">24 fps</option>
+              <option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </div>        </div>
+
+        <div class="control-section" id="panel-recordings">
+          <h3>Saved on this device</h3>
+          <div id="draftRecoveryBanner" style="display:none;"></div>
+          <p id="recFormatNote" class="honesty-note"></p>
+          <button class="btn ghost" id="recMarkerBtn" type="button" style="min-height:44px;width:100%;">Add a chapter marker while recording (key M)</button>
+          <p id="recMarkerStatus" class="honesty-note" role="status"></p>
+          <button class="btn ghost" id="baBtn" type="button" style="min-height:44px;width:100%;margin-top:10px;">Save before and after pictures (for my website)</button>
+          <p id="baMsg" class="honesty-note" role="status"></p>
+          <div id="recordingsList" class="recordings-mini"></div>        </div>
+
+        <div class="control-section" id="panel-live">
+          <h3>Go live wizard</h3>
+          <div id="liveWizard">
+            <div class="wizard-step" data-step="1">
+              <p class="text-dim" style="font-size:13px; margin-bottom:8px;">Step 1 of 3 — where do you want to go live?</p>
+              <button type="button" class="btn ghost full wizard-choice" data-dest="youtube" style="margin-bottom:6px;">YouTube</button>
+              <button type="button" class="btn ghost full wizard-choice" data-dest="twitch" style="margin-bottom:6px;">Twitch</button>
+              <button type="button" class="btn ghost full wizard-choice" data-dest="whip">I already have a WHIP URL</button>
+            </div>
+
+            <div class="wizard-step" data-step="2-relay" style="display:none;">
+              <p class="text-dim" style="font-size:13px; margin-bottom:8px;">Step 2 of 3 — get a free relay running</p>              <ol style="font-size:13px; padding-left:18px; line-height:1.7;">
+                <li>Install MediaMTX (free, one download): <a href="https://github.com/bluenviron/mediamtx" target="_blank" rel="noopener">github.com/bluenviron/mediamtx</a></li>
+                <li>Paste your stream key below, then click Generate:</li>
+              </ol>
+              <div class="field">
+                <label id="wizardKeyLabel" for="wizardStreamKey">Stream key</label>
+                <input type="password" id="wizardStreamKey" placeholder="paste from your platform's Go Live page">
+              </div>
+              <button type="button" class="btn ghost sm" id="wizardGenerateBtn">Generate mediamtx.yml</button>
+              <div id="wizardConfigWrap" style="display:none; margin-top:10px;">
+                <textarea id="wizardConfigOutput" readonly rows="9" class="mono" style="width:100%; font-size:12px;"></textarea>
+                <button type="button" class="btn ghost sm" id="wizardCopyBtn" style="margin-top:6px;">Copy</button>
+                <span id="wizardCopyMsg" style="margin-left:10px; font-size:12px; color:var(--success);"></span>
+                <ol start="3" style="font-size:13px; padding-left:18px; line-height:1.7; margin-top:10px;">
+                  <li>Save that as <code>mediamtx.yml</code> next to the MediaMTX binary, run it.</li>
+                  <li>It will print a local WHIP URL (e.g. <code>http://localhost:8889/genesis/whip</code>) — copy that.</li>
+                </ol>
+                <button type="button" class="btn primary sm" id="wizardToStep3FromRelay">I have my WHIP URL — continue</button>
+              </div>
+              <button type="button" class="btn text-dim sm wizard-back" style="margin-top:10px;">Back</button>
+            </div>
+
+            <div class="wizard-step" data-step="2-whip" style="display:none;">
+              <p class="text-dim" style="font-size:13px; margin-bottom:8px;">Step 2 of 3 — paste your WHIP URL</p>
+              <button type="button" class="btn text-dim sm wizard-back" style="margin-top:10px;">Back</button>
+              <button type="button" class="btn primary sm wizard-to-step3" style="margin-top:10px; margin-left:8px;">Continue</button>
+            </div>
+
+            <div class="wizard-step" data-step="3" style="display:none;">
+              <p class="text-dim" style="font-size:13px; margin-bottom:8px;">Step 3 of 3 — confirm and go live</p>
+              <div class="field">
+                <label for="whipEndpointInput">WHIP ingest URL</label>
+                <input type="text" id="whipEndpointInput" placeholder="https://your-whip-server/whip/genesis">
+              </div>
+              <div class="field">
+                <label for="whipTokenInput">Bearer token (optional)</label>
+                <input type="password" id="whipTokenInput" placeholder="Only if your server requires one">
+              </div>
+              <button id="saveWhipBtn" class="btn ghost sm">Save</button>
+              <span id="whipSaveMsg" style="margin-left:10px; font-size:12px; color:var(--success);"></span>
+              <p id="whipSchemeError" class="honesty-note text-danger" style="display:none; margin-top:6px;"></p>
+
+              <h3 style="margin-top:18px;">Go live</h3>
+              <button class="btn ghost full" id="goLiveCheckBtn" type="button" style="min-height:44px;margin-bottom:8px;">Check before going live</button>
+              <ul id="goLiveChecklist" class="golive-checklist" role="status" aria-live="polite"></ul>
+              <button class="btn primary full" id="goLiveBtn" disabled>Go Live</button>
+              <p id="liveHealth" class="honesty-note" role="status" style="display:none;margin-top:6px;"></p>
+              <div id="liveStatus" class="live-status" style="display:none;">
+                <span class="dot"></span>
+                <span id="liveStatusText">Idle</span>
+                <span id="liveTime" class="rec-time" style="display:none;">0:00</span>
+              </div>
+              <p id="liveQualityNote" class="honesty-note text-warning" style="display:none; margin-top:6px;"></p>
+              <button type="button" class="btn text-dim sm wizard-back" style="margin-top:10px;">Start over</button>
+            </div>
+          </div>
+
+          <details id="obsHelp" style="margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+            <summary class="text-dim" style="cursor:pointer; font-size:13px;">Using OBS, or a free relay (help)</summary>
+            <div style="margin-top:8px;font-size:13px;line-height:1.6;">
+              <p><strong>Honest limit:</strong> a phone browser cannot act as a camera for other apps (no system virtual camera). Two routes work today:</p>
+              <p><strong>1. OBS on a computer.</strong> Open this studio on the computer. In OBS use <em>Window Capture</em> or <em>Display Capture</em> on the browser window showing the studio preview, then stream from OBS as normal. (Not tested here.)</p>
+              <p><strong>2. Free relay.</strong> Install MediaMTX (free) on any computer or a free-tier server, use the wizard above to make its config, and paste the WHIP address it prints. It forwards your stream to YouTube or Twitch, which need RTMP.</p>
+              <p><strong>Steadier streams:</strong> use Wi-Fi, keep the phone plugged in, pick 720p and 1.5 to 2.5 Mbps on a phone, record a copy at the same time. If the picture drops, Genesis lowers quality by itself and restores it later.</p>
+              <p>A desktop app that provides a real virtual camera is planned for later; it does not exist yet.</p>
+            </div>
+          </details>
+          <details style="margin-top:20px; border-top:1px solid var(--border); padding-top:12px;">
+            <summary class="text-dim" style="cursor:pointer; font-size:13px;">Advanced: manual setup / multi-platform config</summary>
+            <div style="margin-top:10px;">
+              <details id="rtmpConfigGenerator" style="margin-top:16px;">
+                <summary class="text-dim" style="cursor:pointer; font-size:13px;">
+                  Multi-platform or custom RTMP config generator
+                </summary>
+                <div style="margin-top:10px;">
+                  <div class="field">
+                    <label for="rtmpPlatformSelect">Send to</label>
+                    <select id="rtmpPlatformSelect">
+                      <option value="youtube">YouTube</option>
+                      <option value="twitch">Twitch</option>
+                      <option value="both">YouTube + Twitch (both at once)</option>
+                      <option value="custom">Custom RTMP URL</option>
+                    </select>
+                  </div>
+                  <div class="field" id="rtmpYoutubeKeyField">
+                    <label for="rtmpYoutubeKeyInput">YouTube stream key</label>
+                    <input type="password" id="rtmpYoutubeKeyInput" placeholder="paste from YouTube Studio → Go Live">
+                  </div>
+                  <div class="field" id="rtmpTwitchKeyField" style="display:none;">
+                    <label for="rtmpTwitchKeyInput">Twitch stream key</label>
+                    <input type="password" id="rtmpTwitchKeyInput" placeholder="paste from Twitch Creator Dashboard">
+                  </div>
+                  <div class="field" id="rtmpCustomUrlField" style="display:none;">
+                    <label for="rtmpCustomUrlInput">Full RTMP URL (server + stream key)</label>
+                    <input type="text" id="rtmpCustomUrlInput" placeholder="rtmp://your-platform/app/your-stream-key">
+                  </div>
+                  <button id="generateRtmpConfigBtn" class="btn ghost sm">Generate mediamtx.yml snippet</button>
+                  <div id="rtmpConfigOutputWrap" style="display:none; margin-top:10px;">
+                    <textarea id="rtmpConfigOutput" readonly rows="9" class="mono" style="width:100%; font-size:12px;"></textarea>
+                    <button id="copyRtmpConfigBtn" class="btn ghost sm" style="margin-top:6px;">Copy</button>
+                    <span id="rtmpConfigCopyMsg" style="margin-left:10px; font-size:12px; color:var(--success);"></span>
+                  </div>                </div>
+              </details>
+
+              <details style="margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+                <summary class="text-dim" style="cursor:pointer; font-size:13px;">Linux virtual camera (experimental)</summary>                <button type="button" class="btn ghost full" id="cameraBridgeToggle">Start sending to virtual camera</button>
+                <p id="cameraBridgeStatus" class="honesty-note" style="display:none; margin-top:6px;"></p>
+              </details>
+            </div>
+          </details>        </div>
+
+        <div class="control-section" id="panel-advanced">
+          <h3>Diagnostics</h3>
+          <div class="diag-block">
+            <div id="stats">FPS: -- | Frame latency: -- ms</div>
+          </div>
+          <div id="costInfo" style="margin-top:10px; font-size:11.5px; color:var(--text-faint);"></div>        </div>
+      </div>
+
+      <!-- BOTTOM: transport -->
+      <div class="transport">
+        <div class="transport-left">
+          <button class="btn ghost sm" id="stopBtn" disabled><span id="stopIconSlot"></span><span class="btn-label">Stop Camera</span></button>
+        </div>
+        <div class="transport-center">
+          <button class="record-control disabled" id="recordBtn" disabled title="Shortcut: Space">
+            <span class="rec-dot-wrap" id="recDotWrap"></span>
+            <span class="rec-text" id="recText">Record</span>
+            <span class="rec-time" id="recTime" style="display:none;">0:00</span>
+          </button>
+        </div>
+        <div class="transport-right">
+          <span class="transport-status" id="transportStatus">Camera off</span>
+          <button class="go-live-control" id="transportLiveBtn" disabled title="Go live">
+            <span class="go-live-dot"></span><span>Go Live</span>
+          </button>
+          <button class="btn ghost sm focus-btn" id="focusModeBtn"><span id="focusIconSlot"></span><span class="btn-label">Focus mode</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/loader.js"></script>
+  <script src="js/ort-loader.js"></script>
+  <script src="js/diagnostics.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/iris.js"></script>
+  <script src="js/providers/segmentation-provider.js"></script>
+  <script src="js/providers/rvm-provider.js"></script>
+  <script src="js/providers/modnet-provider.js"></script>
+  <script src="js/providers/perf-profile.js"></script>
+  <script src="js/providers/scene-meta.js"></script>
+  <script src="js/providers/scene-library.js"></script>
+  <script src="js/providers/environment-provider.js"></script>
+  <script src="js/providers/composition-engine.js"></script>
+  <script src="js/providers/realism-engine.js"></script>
+  <script src="js/providers/mask-refine.js"></script>
+  <script src="js/providers/gl-matte.js"></script>
+  <script src="js/providers/scene-engine.js"></script>
+  <script src="js/providers/pose-gate.js"></script>
+  <script src="js/grade-core.js"></script>
+  <script src="js/render-core.js"></script>
+  <script src="js/providers/captions-provider.js"></script>
+  <script src="js/providers/stream-provider.js"></script>
+  <script src="js/templates.js"></script>
+  <script>
+    // Fill icon-only slots now that icons.js has registered window.VS.icon.
+    document.getElementById('backHomeIcon').innerHTML = window.VS.icon('chevronRight', 15);
+    document.getElementById('settingsIconLink').innerHTML = window.VS.icon('settings', 17);
+    document.getElementById('uploadIconSlot').innerHTML = window.VS.icon('upload', 22);
+    document.getElementById('stopIconSlot').innerHTML = window.VS.icon('stop', 15);
+    document.getElementById('focusIconSlot').innerHTML = window.VS.icon('maximize', 15);
+    document.getElementById('recDotWrap').innerHTML = window.VS.icon('record', 16);
+    document.getElementById('overlayIris').innerHTML = window.VS.irisSVG();
+  </script>
+  <script src="js/prompter-core.js"></script>
+  <script src="js/teleprompter.js"></script>
+  <script src="js/prompter-remote.js"></script>
+  <script src="js/multisource-core.js"></script>
+  <script src="js/trim.js"></script>
+  <script src="js/providers/render-provider.js"></script>
+  <script src="js/render-ui.js"></script>
+  <script src="js/ba-capture.js"></script>
+  <script src="js/golive-core.js"></script>
+  <script src="js/golive.js"></script>
+  <script src="js/multisource.js"></script>
+  <script src="js/qr.js"></script>
+  <script src="js/brand-core.js"></script>
+  <script src="js/graphics.js"></script>
+  <script src="js/show-core.js"></script>
+  <script src="js/looks.js"></script>
+  <script src="js/grade-ui.js"></script>
+  <script src="js/show.js"></script>
+  <script src="js/providers/lufs-meter.js"></script>
+  <script src="js/audio-chain.js"></script>
+  <script src="js/audio-ui.js"></script>
+  <script src="js/audio-mix.js"></script>
+  <script src="js/rec-extras.js"></script>
+  <script src="js/scene-wizard.js"></script>
+  <script src="js/effects-speed.js"></script>
+  <script src="js/light-meter.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/camera-bridge-client.js"></script>
+</body>
+</html>

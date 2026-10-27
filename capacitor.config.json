@@ -1,0 +1,8 @@
+{
+  "appId": "app.genesis.studio",
+  "appName": "Genesis",
+  "webDir": "www",
+  "backgroundColor": "#08090a",
+  "android": { "allowMixedContent": false, "webContentsDebuggingEnabled": false },
+  "server": { "androidScheme": "https" }
+}

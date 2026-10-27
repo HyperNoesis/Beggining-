@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "id": "scene-library-warm",
+  "name": "Warm Library",
+  "type": "library",
+  "image": "assets/environments/scene-library-warm.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [],
+  "life": {
+    "amount": 0.4,
+    "parallax": 0.3
+  },
+  "deskLine": {
+    "y": 0.65,
+    "tilt": 0.0,
+    "bow": 0.0,
+    "feather": 5
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": 1,
+    "colour": [
+      255,
+      205,
+      140
+    ],
+    "softness": 0.55
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.58,
+    "x": 0.0,
+    "y": -0.249
+  },
+  "reflections": {
+    "desk": 0.22
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0.0,
+      "y1": 0.65,
+      "blur": 0.24
+    },
+    {
+      "name": "desk",
+      "y0": 0.65,
+      "y1": 1.0,
+      "blur": 0.0
+    }
+  ],
+  "grade": {
+    "grain": 0.5,
+    "bloom": 0.3,
+    "vignette": 0.25
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true
+  },
+  "licence": "Original procedural artwork generated for Genesis Studio (tools/scenes/make_scenes.py). No third-party assets.",
+  "tags": [
+    "library",
+    "desk",
+    "fixed-camera"
+  ]
+}

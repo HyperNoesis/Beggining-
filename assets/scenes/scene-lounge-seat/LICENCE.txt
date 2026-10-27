@@ -1,0 +1,5 @@
+Scene: scene-lounge-seat
+Name: Green Velvet Lounge (seated)
+Licence / right to use: AI-generated picture (Grok image generator) supplied by the project owner on 2026-10-23. Generator terms for commercial use NOT confirmed by this project: check before selling.
+Original file: source/grok-sofa-original.jpg (1168x784)
+Derived by: tools/scenes/make_lounge_photo.py (crop, foreground cut-outs, depth map by Depth Anything V2 Small, Apache-2.0).

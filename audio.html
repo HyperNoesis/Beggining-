@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Audio Studio</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .audio-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+  @media (max-width: 980px) { .audio-grid { grid-template-columns: 1fr; } }
+  .waveform-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
+  #waveformCanvas { width: 100%; height: 140px; display: block; border-radius: var(--r-sm); background: var(--surface-1); cursor: pointer; }
+  .meter-row { display: flex; gap: 4px; align-items: flex-end; height: 60px; margin-top: 12px; }
+  .lufs-row { display: flex; align-items: center; gap: 18px; margin-top: 14px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm); flex-wrap: wrap; }
+  .lufs-stat { display: flex; flex-direction: column; gap: 2px; }
+  .lufs-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
+  .lufs-value { font-family: ui-monospace, monospace; font-size: 15px; font-weight: 600; color: var(--text); }
+  .meter-bar { flex: 1; background: var(--surface-1); border-radius: 3px; position: relative; overflow: hidden; height: 100%; }
+  .meter-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, var(--success), var(--amber) 75%, var(--danger) 92%); height: 0%; transition: height 60ms linear; }
+  .transport-mini { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .panel-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 16px; transition: border-color var(--dur-base) var(--ease); }
+  .panel-card:hover { border-color: var(--border-strong); }
+  .panel-card h3 { margin: 0 0 12px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); display: flex; align-items: center; gap: 7px; }
+  .panel-card h3 svg { width: 14px; height: 14px; opacity: 0.85; }
+  .clip-select { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <main class="main-content" id="mainContent">
+      <div class="page-head">
+        <div>
+          <h1>Audio Studio</h1>
+          <p class="subtitle">Waveform, gain, a real noise filter, level metering, and background music — all local Web Audio, no cloud processing.</p>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;"></div>
+
+      <div id="audioBody" style="display:none;">
+        <div class="field clip-select">
+          <label for="clipSelect">Clip</label>
+          <select id="clipSelect"></select>
+        </div>
+
+        <div class="audio-grid">
+          <div>
+            <div class="waveform-card">
+              <canvas id="waveformCanvas" width="900" height="140"></canvas>
+              <div class="meter-row">
+                <div class="meter-bar"><div class="meter-fill" id="meterL"></div></div>
+                <div class="meter-bar"><div class="meter-fill" id="meterR"></div></div>
+              </div>
+              <div class="lufs-row" id="lufsRow">
+                <div class="lufs-stat"><span class="lufs-label">Momentary</span><span class="lufs-value" id="lufsMomentary">\u2013</span></div>
+                <div class="lufs-stat"><span class="lufs-label">Short-term</span><span class="lufs-value" id="lufsShortTerm">\u2013</span></div>
+                <div class="lufs-stat"><span class="lufs-label">Integrated (session)</span><span class="lufs-value" id="lufsIntegrated">\u2013</span></div>
+                <button class="btn ghost xs" id="lufsResetBtn" type="button">Reset</button>
+              </div>
+              <p class="honesty-note" id="lufsNote" style="margin-top:10px; padding-top:0; border-top:none;"></p>
+                            <div class="transport-mini">
+                <button class="btn ghost sm" id="playBtn" type="button">Play</button>
+                <button class="btn ghost sm" id="pauseBtn" type="button" disabled>Pause</button>
+                <span id="timeReadout" style="font-family:ui-monospace,monospace; font-size:12px; color:var(--text-faint);">0:00 / 0:00</span>
+              </div>
+              <video id="audioVideo" playsinline style="display:none;"></video>
+              <audio id="musicEl" style="display:none;"></audio>
+              <p class="honesty-note" id="audioSupportNote" style="display:none;"></p>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel-card">
+              <h3>Gain</h3>
+              <div class="field">
+                <label for="gainRange">Level <span id="gainVal">0 dB</span></label>
+                <input type="range" id="gainRange" min="-24" max="24" step="0.5" value="0" aria-label="Gain in decibels">
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Noise reduction</h3>
+              <label class="toggle-row"><input type="checkbox" id="hpToggle"><span>Cut low rumble (high-pass filter)</span></label>
+              <div class="field">
+                <label for="hpFreq">Cutoff <span id="hpFreqVal">100 Hz</span></label>
+                <input type="range" id="hpFreq" min="40" max="300" step="10" value="100" aria-label="High-pass cutoff frequency">
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Background music</h3>
+              <div class="upload-card" id="musicUploadTrigger">
+                <span></span>
+                <span id="musicFileLabel">Upload a music track</span>
+              </div>
+              <input type="file" id="musicUpload" accept="audio/*">
+              <div class="field" style="margin-top:14px;">
+                <label for="musicGainRange">Music level while you're talking <span id="musicGainVal">-18 dB</span></label>
+                <input type="range" id="musicGainRange" min="-40" max="0" step="1" value="-18" aria-label="Background music level while speaking">
+              </div>
+              <div class="field">
+                <label for="musicUnduckRange">Music level while you're silent <span id="musicUnduckVal">-6 dB</span></label>
+                <input type="range" id="musicUnduckRange" min="-24" max="0" step="1" value="-6" aria-label="Background music level while silent">
+              </div>
+              <label class="toggle-row">
+                <input type="checkbox" id="dynamicDuckToggle" checked>
+                <span>Dynamic voice-triggered ducking</span>
+              </label>
+            </div>
+
+            <button class="btn primary full" id="exportBtn" type="button">Export mixed audio</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/providers/lufs-meter.js"></script>
+  <script src="js/audio-studio.js"></script>
+</body>
+</html>

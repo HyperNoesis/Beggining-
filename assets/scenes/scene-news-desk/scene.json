@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "id": "scene-news-desk",
+  "name": "News Desk",
+  "type": "news desk",
+  "image": "assets/environments/scene-news-desk.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [
+    {
+      "x": 0.1171875,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    },
+    {
+      "x": 0.2484375,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    },
+    {
+      "x": 0.3796875,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    },
+    {
+      "x": 0.5109375,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    },
+    {
+      "x": 0.6421875,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    },
+    {
+      "x": 0.7734375,
+      "y": 0.16666666666666666,
+      "w": 0.1171875,
+      "h": 0.2916666666666667
+    }
+  ],
+  "life": {
+    "amount": 0.4,
+    "parallax": 0.3
+  },
+  "deskLine": {
+    "y": 0.64,
+    "tilt": 0.0,
+    "bow": 0.02,
+    "feather": 5
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": -1,
+    "colour": [
+      205,
+      225,
+      255
+    ],
+    "softness": 0.35
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.58,
+    "x": 0.0,
+    "y": -0.239
+  },
+  "reflections": {
+    "desk": 0.22
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0.0,
+      "y1": 0.64,
+      "blur": 0.28
+    },
+    {
+      "name": "desk",
+      "y0": 0.64,
+      "y1": 1.0,
+      "blur": 0.0
+    }
+  ],
+  "grade": {
+    "grain": 0.5,
+    "bloom": 0.3,
+    "vignette": 0.25
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true
+  },
+  "licence": "Original procedural artwork generated for Genesis Studio (tools/scenes/make_scenes.py). No third-party assets.",
+  "tags": [
+    "news desk",
+    "desk",
+    "fixed-camera"
+  ]
+}

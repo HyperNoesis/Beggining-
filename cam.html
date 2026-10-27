@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis Camera</title><link rel="icon" href="assets/logo.png"><meta name="theme-color" content="#08090a">
+<style>
+:root{--bg:#08090a;--card:#16181b;--tx:#f2f3f5;--dim:#a3a8b0;--ac:#6ea8ff;--ok:#5ed38a;--bad:#ff7b7b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif;padding:14px 16px;max-width:520px;margin:0 auto}
+h1{font-size:18px;margin:4px 0 2px}#st{font-size:14px;color:var(--dim);min-height:20px;margin-bottom:10px}#st.ok{color:var(--ok)}#st.bad{color:var(--bad)}
+video{width:100%;border-radius:14px;background:#000;aspect-ratio:16/9;object-fit:cover}
+button{min-height:56px;width:100%;font-size:17px;border-radius:14px;border:1px solid #2a2e33;background:var(--card);color:var(--tx);font-weight:600;margin-top:10px}
+button.big{background:var(--ac);color:#06101f;border:0}button:disabled{opacity:.4}button:focus-visible{outline:3px solid var(--ac)}
+.info{font-size:13px;color:var(--dim);margin:8px 0}
+</style></head><body>
+<h1>Genesis Camera</h1>
+<div id="st" role="status" aria-live="polite">Starting…</div>
+<video id="v" autoplay muted playsinline></video>
+<button class="big" id="bStart">Start this phone as a camera</button>
+<button id="bFlip" disabled>Switch front / back camera</button>
+<button id="bStop" disabled>Stop</button>
+<p class="info">Only video is sent, straight to your studio phone. Keep this screen on. Use the same Wi-Fi for the best result.</p>
+<script src="js/config.js"></script><script src="js/prompter-core.js"></script><script src="js/multisource-core.js"></script><script src="js/cam.js"></script>
+</body></html>

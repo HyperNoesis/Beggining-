@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Live Call</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <div class="main-content" id="mainContent" role="main">
+
+      <!-- Honest default, true without any JS running: most deployments
+           won't have signalingUrl set yet. call.js swaps this out only if
+           there's something more specific and better to show — so even a
+           total JS failure still shows something true, never blank. -->
+      <div id="callNotConfigured" class="section">
+        <div class="info-card" style="max-width:560px;">
+          <h3>Live calling isn't set up yet</h3>
+          <p style="color:var(--text-dim); font-size:13px;">Check back soon.</p>
+        </div>
+      </div>
+
+      <div id="callJoinScreen" class="section hidden">
+        <div class="info-card" style="max-width:420px; margin: 40px auto;">
+          <h3>Start or join a call</h3>
+          <p class="honesty-note" style="margin-top:0;">Up to 6 people per room. Camera only for now — no screen share yet.</p>
+          <div class="field">
+            <label for="callNameInput">Your name</label>
+            <input type="text" id="callNameInput" placeholder="How others will see you">
+          </div>
+          <div class="field">
+            <label for="callRoomInput">Room code</label>
+            <input type="text" id="callRoomInput" placeholder="e.g. weekly-standup">
+          </div>
+          <p class="honesty-note" style="margin-top:0;">Anyone with this room code can join.</p>
+          <button class="btn primary full" id="callJoinBtn" type="button">Join call</button>
+          <div class="error-msg" id="callJoinError"></div>
+        </div>
+      </div>
+
+      <div id="callRoom" class="hidden">
+        <div class="call-topbar">
+          <div class="call-room-label">Room: <strong id="callRoomLabel"></strong>
+            <button type="button" class="link-btn" id="callCopyLinkBtn" style="margin-left:8px;">Copy invite link</button>
+          </div>
+          <div class="call-status" id="callStatus">Connecting…</div>
+        </div>
+
+        <div class="call-gallery" id="callGallery"><!-- tiles injected by js/call.js --></div>
+
+        <div class="call-controlbar">
+          <button class="call-ctrl-btn" id="callMicBtn" type="button" aria-pressed="false" title="Mute microphone"></button>
+          <button class="call-ctrl-btn" id="callCamBtn" type="button" aria-pressed="false" title="Turn off camera"></button>
+          <button class="call-ctrl-btn call-end-btn" id="callEndBtn" type="button" title="Leave call"></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script>window.VS.renderNav('call');</script>
+  <script src="js/call.js"></script>
+</body>
+</html>

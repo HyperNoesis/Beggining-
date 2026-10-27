@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Genesis — Tests</title>
+<style>
+  body { font-family: ui-monospace, monospace; background: #0b0b10; color: #e8e8ef; padding: 24px; }
+  h1 { font-size: 16px; }
+  .suite { margin-bottom: 18px; }
+  .suite h2 { font-size: 13px; color: #9a9aab; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .case { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 12.5px; }
+  .pass { background: rgba(60,200,120,0.1); color: #7ee2a8; }
+  .fail { background: rgba(240,80,90,0.12); color: #ff9aa2; }
+  #summary { margin-top: 20px; padding: 14px; border-radius: 8px; background: #16161d; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Genesis — in-browser test suite</h1>
+  <p style="color:#9a9aab; font-size:12.5px;">No build step, no test runner install — assertions run directly against the real provider files and real IndexedDB, same zero-install philosophy as the app itself. Open this file directly to run.</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script src="js/loader.js"></script>
+  <script src="js/providers/composition-engine.js"></script>
+  <script src="js/providers/realism-engine.js"></script>
+  <script src="js/providers/mask-refine.js"></script>
+  <script src="js/providers/gl-matte.js"></script>
+  <script src="js/providers/scene-engine.js"></script>
+  <script src="js/providers/perf-profile.js"></script>
+  <script src="js/providers/segmentation-provider.js"></script>
+  <script src="js/providers/captions-provider.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/templates.js"></script>
+  <script>
+    const resultsEl = document.getElementById('results');
+    let pass = 0, fail = 0;
+    let currentSuite = null;
+
+    function suite(name) {
+      currentSuite = document.createElement('div');
+      currentSuite.className = 'suite';
+      currentSuite.innerHTML = `<h2>${name}</h2>`;
+      resultsEl.appendChild(currentSuite);
+    }
+
+    function assert(condition, description) {
+      const row = document.createElement('div');
+      row.className = 'case ' + (condition ? 'pass' : 'fail');
+      row.textContent = (condition ? '✓ ' : '✗ ') + description;
+      currentSuite.appendChild(row);
+      if (condition) pass++; else fail++;
+    }
+
+    function approx(a, b, eps = 0.01) { return Math.abs(a - b) < eps; }
+
+    async function run() {
+      // ---- CompositionEngine ----
+      suite('CompositionEngine');
+      {
+        const c = new window.VS.CompositionEngine();
+        assert(c.aspectId === '16:9', 'defaults to 16:9');
+        c.setAspect('1:1');
+        assert(c.aspect.ratio === 1, 'switches aspect to 1:1');
+        c.setAspect('bogus');
+        assert(c.aspectId === '1:1', 'ignores an invalid aspect id');
+
+        c.setZoom(10);
+        assert(c.zoom === 3, 'clamps zoom to the 3x max');
+        c.setZoom(0);
+        assert(c.zoom === 1, 'clamps zoom to the 1x min');
+
+        c.setAspect('1:1');
+        c.setZoom(1);
+        c.resetPan();
+        const frame = c.computeFrame(1920, 1080, 1280);
+        assert(frame.outW === 1280 && frame.outH === 1280, 'computes a 1:1 output frame at the requested max dimension');
+        assert(approx(frame.sw, 1080) && approx(frame.sh, 1080), 'crops the largest centered square out of a 1920x1080 source at zoom 1');
+
+        c.setZoom(2);
+        const zoomed = c.computeFrame(1920, 1080, 1280);
+        assert(approx(zoomed.sw, 540), 'zooming to 2x halves the crop window width');
+
+        c.setPan(0, 0);
+        const panned = c.computeFrame(1920, 1080, 1280);
+        assert(panned.sx === 0 && panned.sy === 0, 'panning to (0,0) clamps the crop into the top-left corner, not off-frame');
+      }
+
+      // ---- RealismEngine ----
+      suite('RealismEngine');
+      {
+        const r = new window.VS.RealismEngine();
+        assert(r.personFilterString() === 'none', 'no filter applied while disabled');
+        r.enabled = true;
+        const f = r.personFilterString();
+        assert(f.includes('brightness') && f.includes('contrast') && f.includes('saturate'), 'produces a real CSS filter string once enabled');
+        r.intensity = 0;
+        const neutral = r.personFilterString();
+        assert(neutral.includes('brightness(1.000)'), 'zero intensity yields a neutral (no-op) brightness term');
+      }
+
+      // ---- MaskRefiner ----
+      suite('MaskRefiner');
+      {
+        const m = new window.VS.MaskRefiner();
+        m.resize(64, 64);
+        assert(m._correctionCanvas.width === 64, 'resizes its correction canvas');
+        m.correctionEnabled = true;
+        m.brushMode = 'add';
+        m.paintAt(32, 32);
+        const data = m._correctionCtx.getImageData(0, 0, 64, 64).data;
+        let hasPaint = false;
+        for (let i = 3; i < data.length; i += 4) { if (data[i] > 0) { hasPaint = true; break; } }
+        assert(hasPaint, 'painting an "include" stroke actually writes alpha into the correction canvas');
+      }
+
+      // ---- PerfProfile: device classification ----
+      suite('PerfProfile — device classification (FAST preselect)');
+      {
+        const P = window.VS.PerfProfile;
+        assert(P.classifyDevice({ deviceMemory: 8, hardwareConcurrency: 8 }).tier === 'standard', '8 GB / 8 threads is not flagged');
+        assert(P.classifyDevice({ deviceMemory: 4, hardwareConcurrency: 8 }).tier === 'low', '4 GB memory alone flags low (budget Android reports 4 with 8 weak cores)');
+        assert(P.classifyDevice({ deviceMemory: 2, hardwareConcurrency: 8 }).tier === 'low', '2 GB memory flags low');
+        assert(P.classifyDevice({ deviceMemory: 8, hardwareConcurrency: 4 }).tier === 'low', '4 CPU threads alone flags low');
+        assert(P.classifyDevice({ deviceMemory: 8, hardwareConcurrency: 6 }).tier === 'standard', '6 threads is not flagged (recent iPhones report 6 and are fast)');
+        assert(P.classifyDevice({}).tier === 'standard', 'no signals at all (Safari/Firefox) is NOT guessed low');
+        assert(P.classifyDevice({ deviceMemory: 0, hardwareConcurrency: 0 }).tier === 'standard', 'zero/bogus values are ignored, not treated as "very low"');
+        const both = P.classifyDevice({ deviceMemory: 2, hardwareConcurrency: 2 });
+        assert(both.reasons.length === 2, 'reports every reason it flagged, so the UI note can name them');
+        assert(P.detect({ deviceMemory: 2, hardwareConcurrency: 8 }).tier === 'low', 'detect() reads signals from a supplied navigator-like object');
+      }
+
+      // ---- PerfProfile: runtime degrade decision ----
+      suite('PerfProfile — runtime degrade decision');
+      {
+        const P = window.VS.PerfProfile;
+        const d = (o) => P.decideDegradeAction(Object.assign({ quality: 'fast', stride: 1, fps: 10, segMs: 80 }, o));
+        assert(d({ quality: 'balanced' }) === 'suggest-fast', 'BALANCED + sustained low FPS -> offer FAST');
+        assert(d({ quality: 'quality' }) === 'suggest-fast', 'QUALITY + sustained low FPS -> offer FAST');
+        assert(d({}) === 'engage-stride', 'FAST + model-bound (80ms of a 100ms frame) -> skip mask updates');
+        assert(d({ segMs: 20 }) === 'no-stride-help', 'FAST + model is only 20% of frame time -> skipping inference would not help');
+        assert(d({ segMs: 40 }) === 'engage-stride', 'boundary: exactly 40% of the frame counts as model-bound');
+        assert(d({ segMs: 0 }) === 'no-stride-help', 'unknown model cost -> do not degrade the mask blindly');
+        assert(d({ fps: 0 }) === 'no-stride-help', 'zero FPS does not divide by zero or engage');
+        assert(d({ stride: 2 }) === 'ceiling', 'already at max stride -> honest "this is the ceiling"');
+        assert(P.MAX_STRIDE === 2, 'stride is capped at 2 (3+ makes moving heads outrun their cutout)');
+      }
+
+      // ---- FAST lite pipeline flags ----
+      suite('FAST lite pipeline (render-side flags)');
+      {
+        const r = new window.VS.RealismEngine();
+        r.enabled = true;
+        let touched = false;
+        const spy = new Proxy({}, { get() { touched = true; return () => {}; }, set() { touched = true; return true; } });
+        r.lite = true;
+        r.drawLightWrap(spy, {}, 10, 10);
+        assert(!touched, 'lite: light wrap draws nothing at all');
+        r.lite = false;
+        r.drawLightWrap(spy, {}, 10, 10);
+        assert(touched, 'not lite: light wrap still draws');
+
+        const m = new window.VS.MaskRefiner();
+        m.resize(32, 32);
+        let despeckleCalls = 0;
+        m._despeckle = () => { despeckleCalls++; };
+        const raw = document.createElement('canvas'); raw.width = 32; raw.height = 32;
+        const out = document.createElement('canvas'); out.width = 32; out.height = 32;
+        m.despeckle = 1;
+        m.lite = false;
+        m.buildFinalMask(out.getContext('2d'), raw, 32, 32);
+        assert(despeckleCalls === 1, 'not lite: despeckle pass runs');
+        m.lite = true;
+        m.buildFinalMask(out.getContext('2d'), raw, 32, 32);
+        assert(despeckleCalls === 1, 'lite: despeckle pass is skipped even with the slider above 0');
+        m.lite = false; m.despeckle = 0;
+        m.buildFinalMask(out.getContext('2d'), raw, 32, 32);
+        assert(despeckleCalls === 1, 'slider at 0 still skips despeckle, as before');
+      }
+
+      // ---- Segmentation provider model choice ----
+      suite('MediaPipeSegmentationProvider — model choice per mode');
+      {
+        const seen = [];
+        window.SelfieSegmentation = class { constructor() {} setOptions(o) { seen.push(o.modelSelection); } onResults() {} close() {} };
+        const p1 = new window.VS.MediaPipeSegmentationProvider();
+        await p1.initialize('fast');
+        assert(p1.modelSelection === 1, 'FAST uses modelSelection 1 (landscape, 144x256, fewer FLOPs = the FASTER model — it used to be 0, the heavier one)');
+        const p2 = new window.VS.MediaPipeSegmentationProvider();
+        await p2.initialize('balanced');
+        assert(p2.modelSelection === 1, 'BALANCED unchanged from previous builds');
+        const p3 = new window.VS.MediaPipeSegmentationProvider();
+        await p3.initialize('nonsense');
+        assert(p3.modelSelection === 1, 'an unknown mode falls back to the lighter model rather than crashing');
+        assert(seen.length === 3 && seen.every((v) => v === 1), 'the value is actually passed to MediaPipe setOptions');
+        delete window.SelfieSegmentation;
+      }
+
+      // ---- CaptionsProvider formatting ----
+      suite('CaptionsProvider');
+      {
+        const cues = [{ start: 0, end: 1.5, text: 'hello world' }, { start: 1.5, end: 3.2, text: 'second cue' }];
+        const vtt = window.VS.CaptionsProvider.toVTT(cues);
+        assert(vtt.startsWith('WEBVTT'), 'VTT output starts with the WEBVTT header');
+        assert(vtt.includes('00:00:00.000 --> 00:00:01.500'), 'VTT timestamps are correctly formatted');
+        const srt = window.VS.CaptionsProvider.toSRT(cues);
+        assert(srt.includes('00:00:00,000 --> 00:00:01,500'), 'SRT timestamps use a comma decimal separator');
+        assert(srt.trim().startsWith('1'), 'SRT cues are numbered starting at 1');
+      }
+
+      // ---- Templates (localStorage) ----
+      suite('Templates (localStorage)');
+      {
+        const id = window.VS.templates.save({ name: 'Test template', env: 'studio-a' });
+        const fetched = window.VS.templates.get(id);
+        assert(fetched && fetched.name === 'Test template', 'save + get round-trips a template');
+        window.VS.templates.remove(id);
+        assert(window.VS.templates.get(id) === null, 'remove actually deletes it');
+      }
+
+      // ---- storage.js (real IndexedDB) ----
+      suite('storage.js (real IndexedDB)');
+      {
+        const blob = new Blob(['fake video bytes'], { type: 'video/webm' });
+        const id = await window.VS.storage.saveRecording(blob, { title: 'Test clip' });
+        const fetched = await window.VS.storage.getRecording(id);
+        assert(fetched && fetched.meta.title === 'Test clip', 'saveRecording + getRecording round-trips');
+
+        const updated = await window.VS.storage.updateRecordingMeta(id, { title: 'Renamed' });
+        assert(updated.meta.title === 'Renamed', 'updateRecordingMeta patches without losing the id');
+
+        const dupId = await window.VS.storage.duplicateRecording(id);
+        const dup = await window.VS.storage.getRecording(dupId);
+        assert(dup && dup.id !== id && dup.meta.title === 'Renamed copy', 'duplicateRecording creates a distinct copy with a derived title');
+
+        const list = await window.VS.storage.listRecordings();
+        assert(list.some(r => r.id === id) && list.some(r => r.id === dupId), 'listRecordings returns both the original and the duplicate');
+
+        await window.VS.storage.deleteRecording(id);
+        await window.VS.storage.deleteRecording(dupId);
+        const afterDelete = await window.VS.storage.getRecording(id);
+        assert(afterDelete === null, 'deleteRecording actually removes the record');
+
+        // draft autosave path
+        await window.VS.storage.saveDraft(blob, { savedAt: 'test' });
+        const draft = await window.VS.storage.getDraft();
+        assert(draft && draft.meta.savedAt === 'test', 'saveDraft + getDraft round-trips');
+        await window.VS.storage.clearDraft();
+        const clearedDraft = await window.VS.storage.getDraft();
+        assert(clearedDraft === null, 'clearDraft removes the draft');
+      }
+
+      document.getElementById('summary').textContent = `${pass} passed, ${fail} failed`;
+      document.getElementById('summary').style.color = fail ? '#ff9aa2' : '#7ee2a8';
+    }
+
+    run().catch(err => {
+      document.getElementById('summary').textContent = 'Test run crashed: ' + err.message;
+      document.getElementById('summary').style.color = '#ff9aa2';
+    });
+  </script>
+</body>
+</html>

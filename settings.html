@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Settings</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <div class="main-content" id="mainContent" role="main" style="max-width:640px;">
+      <div class="page-head">
+        <div>
+          <h1>Settings</h1>
+          <p class="subtitle">Local account, stored on this device only.</p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h2>Profile</h2>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="nameInput">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="emailInput" disabled>
+        </div>
+        <button id="saveProfile" class="btn primary">Save</button>
+        <span id="saveMsg" style="margin-left:10px; font-size:12px; color:var(--success);"></span>
+      </div>
+
+      <div class="settings-section">
+        <h2>Studio defaults</h2>
+        <div class="field">
+          <label>Default quality mode</label>
+          <select id="defaultQuality">
+            <option value="auto">AUTOMATIC: fast on low-powered devices, otherwise balanced</option>
+            <option value="fast">FAST: low processing load</option>
+            <option value="balanced">BALANCED: recommended</option>
+            <option value="quality">QUALITY: maximum local quality</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="rendererMode">Preview rendering</label>
+          <select id="rendererMode">
+            <option value="auto">Automatic (recommended)</option>
+            <option value="compat">Compatibility mode (main thread)</option>
+          </select>
+          <p class="honesty-note">
+            If your live preview looks black but recording/going live still
+            works, switch to Compatibility mode.
+          </p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h2>Security</h2>
+        <div class="field" id="currentPasswordField">
+          <label>Current password</label>
+          <input type="password" id="curPasswordInput" placeholder="********">
+        </div>
+        <div class="field">
+          <label>New password</label>
+          <input type="password" id="newPasswordInput" placeholder="At least 6 characters">
+        </div>
+        <button id="changePasswordBtn" class="btn primary sm">Change password</button>
+        <span id="passwordMsg" style="margin-left:10px; font-size:12px;"></span>
+      </div>
+
+      <div class="settings-section">
+        <h2>Storage</h2>
+        <div class="settings-row">
+          <div>
+            <div class="project-title" style="font-weight:600;">Recordings</div>
+            <div class="project-sub" style="color:var(--text-faint); font-size:12px;" id="storageNote">Saved on this device via IndexedDB. No server copy exists yet.</div>
+          </div>
+          <a href="projects.html"><button class="btn ghost sm">View library</button></a>
+        </div>
+      </div>
+
+      <div class="settings-section danger">
+        <h2>Danger zone</h2>
+        <div class="settings-row">
+          <div>
+            <div class="project-title" style="font-weight:600;">Sign out</div>
+            <div class="project-sub" style="color:var(--text-faint); font-size:12px;">Ends your session on this device.</div>
+          </div>
+          <button id="signOutBtn" class="btn ghost sm">Sign out</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="project-title" style="font-weight:600;" id="deleteTitle">Clear all local data</div>
+            <div class="project-sub" style="color:var(--text-faint); font-size:12px;" id="deleteSub">Deletes your account, recordings, and custom environments from this browser. Cannot be undone.</div>
+          </div>
+          <button id="clearAllBtn" class="btn danger sm">Clear everything</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    (async () => {
+      const user = await window.VS.renderNav('settings');
+      if (!user) return;
+      document.getElementById('nameInput').value = user.name;
+      document.getElementById('emailInput').value = user.email;
+      document.getElementById('defaultQuality').value = localStorage.getItem('vs_default_quality') || 'auto';
+      document.getElementById('rendererMode').value = localStorage.getItem('vs_renderer_mode') || 'auto';
+      document.getElementById('rendererMode').addEventListener('change', (e) => {
+        localStorage.setItem('vs_renderer_mode', e.target.value);
+      });
+
+      // Cloud vs local account copy — same real/local switch as elsewhere.
+      const isCloud = window.VS.auth.mode === 'supabase';
+      document.querySelector('.subtitle').textContent = isCloud
+        ? 'Cloud account, works across any device you sign in on.'
+        : 'Local account, stored on this device only.';
+      document.getElementById('storageNote').textContent = window.VS.storage.mode === 'supabase'
+        ? 'Synced to your account in the cloud, reachable from any device.'
+        : 'Saved on this device via IndexedDB. No server copy exists yet.';
+      // Local accounts verify a change with the current password (there's no
+      // separate session to trust); Supabase's session is already the
+      // verification, so that field would just be friction.
+      document.getElementById('currentPasswordField').style.display = isCloud ? 'none' : 'block';
+      document.getElementById('deleteTitle').textContent = isCloud ? 'Delete account' : 'Clear all local data';
+      document.getElementById('deleteSub').textContent = isCloud
+        ? 'Permanently deletes your account, recordings, and custom environments from the cloud. Cannot be undone.'
+        : 'Deletes your account, recordings, and custom environments from this browser. Cannot be undone.';
+      document.getElementById('clearAllBtn').textContent = isCloud ? 'Delete account' : 'Clear everything';
+
+      document.getElementById('saveProfile').addEventListener('click', async () => {
+        await window.VS.auth.updateProfile(document.getElementById('nameInput').value);
+        // 'auto' is stored as ABSENCE: a saved 'balanced' would be an explicit
+        // choice that Studio must obey, which would silently switch off the
+        // low-powered-device detection the first time anyone saved a profile.
+        const chosenQuality = document.getElementById('defaultQuality').value;
+        if (chosenQuality === 'auto') localStorage.removeItem('vs_default_quality');
+        else localStorage.setItem('vs_default_quality', chosenQuality);
+        const msg = document.getElementById('saveMsg');
+        msg.textContent = 'Saved.';
+        setTimeout(() => msg.textContent = '', 2000);
+      });
+
+      document.getElementById('changePasswordBtn').addEventListener('click', async () => {
+        const msg = document.getElementById('passwordMsg');
+        msg.style.color = 'var(--danger)';
+        const newPw = document.getElementById('newPasswordInput').value;
+        const curPw = document.getElementById('curPasswordInput').value;
+        try {
+          await window.VS.auth.updatePassword(newPw, curPw);
+          msg.style.color = 'var(--success)';
+          msg.textContent = 'Password changed.';
+          document.getElementById('newPasswordInput').value = '';
+          document.getElementById('curPasswordInput').value = '';
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+        setTimeout(() => msg.textContent = '', 4000);
+      });
+
+      document.getElementById('signOutBtn').addEventListener('click', async () => {
+        await window.VS.auth.signOut();
+        window.location.href = 'auth.html';
+      });
+
+      document.getElementById('clearAllBtn').addEventListener('click', async () => {
+        if (isCloud) {
+          if (!confirm('This permanently deletes your account, recordings, and custom environments from the cloud. This cannot be undone. Continue?')) return;
+          try {
+            await window.VS.auth.deleteAccount();
+          } catch (err) {
+            alert('Could not delete account: ' + err.message);
+            return;
+          }
+          window.location.href = 'auth.html';
+        } else {
+          if (!confirm('This deletes your account, recordings, and custom environments from this device. Continue?')) return;
+          localStorage.clear();
+          indexedDB.deleteDatabase('virtual-studio');
+          window.location.href = 'auth.html';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

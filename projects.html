@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genesis — Projects</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .project-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; transition: transform var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease); }
+  .project-card:hover { transform: translateY(-2px); border-color: var(--border-accent); box-shadow: var(--shadow-md); }
+  .project-card video, .project-card .env-thumb-large { width: 100%; max-height: 420px; display: block; background: #000; }
+  .env-thumb-large { height: 220px; background-size: cover; background-position: center; }
+  .project-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; flex-wrap: wrap; }
+  .project-meta-row .project-info { min-width: 0; flex: 1; }
+  .project-title-row { display: flex; align-items: center; gap: 8px; }
+  .project-title { font-size: 14.5px; font-weight: 600; margin-bottom: 3px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 4px; margin-left: -4px; width: auto; }
+  .project-title:hover, .project-title:focus { border-color: var(--border); background: var(--surface-1); }
+  .project-sub { font-size: 12px; color: var(--text-faint); }
+  .project-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .projects-list { display: flex; flex-direction: column; gap: 18px; }
+
+  .lib-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .lib-tab { padding: 10px 4px; margin-right: 18px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-faint); font-weight: 600; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .lib-tab svg { width: 15px; height: 15px; }
+  .lib-tab.active { color: var(--text); border-bottom-color: var(--blue); }
+  .lib-tab:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .lib-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
+  .lib-toolbar input[type="search"] { max-width: 280px; }
+  .lib-toolbar select { max-width: 180px; }
+  .lib-count { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+
+  .env-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .sync-note { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px dashed var(--border-strong); border-radius: var(--r-md); color: var(--text-faint); font-size: 12.5px; margin-bottom: 24px; }
+  .sync-note strong { color: var(--text-dim); }
+
+  @media (max-width: 560px) {
+    .lib-toolbar { flex-direction: column; align-items: stretch; }
+    .lib-count { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+    <div id="nav-root"></div>
+    <main class="main-content" id="mainContent">
+      <div class="page-head">
+        <div>
+          <span class="panel-eyebrow">LIBRARY</span>
+          <h1>Projects</h1>
+          <p class="subtitle">Everything you make, kept calm and searchable. Recordings stay local unless cloud sync is configured.</p>
+        </div>
+        <a href="studio.html" class="btn primary">Open Studio</a>
+      </div>
+
+      <div class="sync-note"></div>
+
+      <div class="lib-tabs" role="tablist" aria-label="Asset type">
+        <button class="lib-tab active" id="tabRecordings" role="tab" aria-selected="true" aria-controls="panelRecordings">Recordings</button>
+        <button class="lib-tab" id="tabEnvironments" role="tab" aria-selected="false" aria-controls="panelEnvironments">Environments</button>
+      </div>
+
+      <div class="lib-toolbar">
+        <input type="search" id="searchInput" placeholder="Search by name..." aria-label="Search assets">
+        <select id="sortSelect" aria-label="Sort order">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="name">Name (A–Z)</option>
+        </select>
+        <span class="lib-count" id="libCount"></span>
+      </div>
+
+      <div id="panelRecordings" role="tabpanel" aria-labelledby="tabRecordings">
+        <div id="recList" class="projects-list"></div>
+      </div>
+      <div id="panelEnvironments" role="tabpanel" aria-labelledby="tabEnvironments" hidden>
+        <div id="envGrid" class="env-grid"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/error-boundary.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+  <script src="js/providers/auth-provider.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/providers/storage-provider.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/providers/environment-provider.js"></script>
+  <script src="js/providers/captions-provider.js"></script>
+  <script src="js/providers/groq-transcription.js"></script>
+  <script>
+    (async () => {
+      const user = await window.VS.renderNav('projects');
+      if (!user) return;
+
+      const envProvider = new window.VS.StaticEnvironmentProvider();
+      await envProvider.hydrateFromStorage();
+
+      // --- honest cloud-sync note, built with JS so it isn't a raw template artifact in markup ---
+      const syncNoteEl = document.querySelector('.sync-note');
+      if (window.VS.storage.mode === 'supabase') {
+        syncNoteEl.innerHTML = `${window.VS.icon('folder', 18)}<span><strong>Synced to the cloud.</strong> Recordings are stored in your account and reachable from any device you sign in on.</span>`;
+      } else {
+        syncNoteEl.innerHTML = `${window.VS.icon('folder', 18)}<span><strong>No cloud sync yet.</strong> Everything below lives in this browser's local storage/IndexedDB only, so clearing site data or switching devices loses it. Fill in <code>js/config.js</code> with a Supabase project to turn on cross-device sync (see <code>docs/DEPLOY.md</code>).</span>`;
+      }
+
+      const tabRecordings = document.getElementById('tabRecordings');
+      const tabEnvironments = document.getElementById('tabEnvironments');
+      tabRecordings.insertAdjacentHTML('afterbegin', window.VS.icon('video', 15));
+      tabEnvironments.insertAdjacentHTML('afterbegin', window.VS.icon('environments', 15));
+      const panelRecordings = document.getElementById('panelRecordings');
+      const panelEnvironments = document.getElementById('panelEnvironments');
+      const searchInput = document.getElementById('searchInput');
+      const sortSelect = document.getElementById('sortSelect');
+      const libCount = document.getElementById('libCount');
+
+      let activeTab = 'recordings';
+      let recordings = [];
+
+
+      function fmtDate(ts) { return new Date(ts).toLocaleString(); }
+
+      function applySearchSort(items, nameFn, dateFn) {
+        const q = searchInput.value.trim().toLowerCase();
+        let list = q ? items.filter(i => nameFn(i).toLowerCase().includes(q)) : items.slice();
+        const mode = sortSelect.value;
+        if (mode === 'newest') list.sort((a, b) => dateFn(b) - dateFn(a));
+        else if (mode === 'oldest') list.sort((a, b) => dateFn(a) - dateFn(b));
+        else if (mode === 'name') list.sort((a, b) => nameFn(a).localeCompare(nameFn(b)));
+        return list;
+      }
+
+      async function loadRecordings() {
+        recordings = await window.VS.storage.listRecordings();
+      }
+
+      function renderRecordings() {
+        const list = document.getElementById('recList');
+        const items = applySearchSort(
+          recordings,
+          r => r.meta.title || r.meta.environment || 'Recording',
+          r => r.createdAt
+        );
+        libCount.textContent = `${items.length} recording${items.length === 1 ? '' : 's'}`;
+
+        if (recordings.length === 0) {
+          list.innerHTML = `
+            <div class="empty-state">
+              ${window.VS.icon('projects', 32)}
+              <div class="empty-title">Your first creation is waiting</div>
+              <div class="empty-sub">Open Studio and turn your camera into a studio. Everything you record lands here.</div>
+              <a href="studio.html"><button class="btn primary">Open Studio</button></a>
+            </div>`;
+          return;
+        }
+        if (items.length === 0) {
+          list.innerHTML = `<div class="empty-state"><div class="empty-title">No matches</div><div class="empty-sub">Try a different search term.</div></div>`;
+          return;
+        }
+
+        list.innerHTML = '';
+        items.forEach(rec => {
+          const url = URL.createObjectURL(rec.blob);
+          const title = rec.meta.title || rec.meta.environment || 'Recording';
+          const row = document.createElement('div');
+          row.className = 'project-card';
+          row.innerHTML = `
+            <video src="${url}" controls preload="metadata"></video>
+            <div class="project-meta-row">
+              <div class="project-info">
+                <div class="project-title-row">
+                  <input class="project-title" value="${title.replace(/"/g, '&quot;')}" data-id="${rec.id}" aria-label="Recording name">
+                </div>
+                <div class="project-sub">${(rec.meta.quality || '').toUpperCase()}${rec.meta.aspect ? ' · ' + rec.meta.aspect : ''}${rec.meta.fps ? ' · ' + rec.meta.fps + 'fps' : ''} &middot; ${rec.meta.createdAt || fmtDate(rec.createdAt)}</div>
+              </div>
+              <div class="project-actions">
+                <a href="${url}" download="genesis-${rec.id}.webm"><button class="btn ghost sm" aria-label="Download recording">${window.VS.icon('download', 15)}<span>Download</span></button></a>
+                <button class="btn ghost sm transcribe-btn" data-id="${rec.id}" aria-label="Transcribe with Groq">${window.VS.icon('captions', 15)}<span>${rec.meta.captions && rec.meta.captions.length ? 'Re-transcribe' : 'Transcribe (AI)'}</span></button>
+                ${rec.meta.captions && rec.meta.captions.length ? `<button class="btn ghost sm srt-btn" data-id="${rec.id}" aria-label="Download captions as SRT">${window.VS.icon('download', 15)}<span>SRT</span></button><button class="btn ghost sm vtt-btn" data-id="${rec.id}" aria-label="Download captions as VTT">${window.VS.icon('download', 15)}<span>VTT</span></button>` : ''}
+                <button class="btn ghost sm dup-btn" data-id="${rec.id}" aria-label="Duplicate recording">${window.VS.icon('layers', 15)}<span>Duplicate</span></button>
+                <button class="btn danger sm delete-btn" data-id="${rec.id}" aria-label="Delete recording">${window.VS.icon('trash', 15)}<span>Delete</span></button>
+              </div>
+            </div>`;
+          list.appendChild(row);
+        });
+
+        list.querySelectorAll('.project-title').forEach(input => {
+          input.addEventListener('change', async () => {
+            await window.VS.storage.updateRecordingMeta(input.dataset.id, { title: input.value.trim() || 'Recording' });
+            await loadRecordings();
+          });
+        });
+        list.querySelectorAll('.transcribe-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!window.VS.GroqTranscriptionProvider.hasApiKey) {
+              alert('Transcription isn\u2019t available right now.');
+              return;
+            }
+            const rec = recordings.find(r => r.id === btn.dataset.id);
+            if (!rec) return;
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            try {
+              btn.innerHTML = `${window.VS.icon('loader', 15)}<span>Transcribing...</span>`;
+              const cues = await window.VS.GroqTranscriptionProvider.transcribe(rec.blob, (msg) => {
+                btn.innerHTML = `${window.VS.icon('loader', 15)}<span>${msg}</span>`;
+              });
+              await window.VS.storage.updateRecordingMeta(rec.id, { captions: cues });
+              await loadRecordings();
+              renderRecordings();
+            } catch (err) {
+              alert(err.message);
+              btn.disabled = false;
+              btn.innerHTML = original;
+            }
+          });
+        });
+        list.querySelectorAll('.srt-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const rec = recordings.find(r => r.id === btn.dataset.id);
+            if (!rec || !rec.meta.captions) return;
+            const srt = window.VS.CaptionsProvider.toSRT(rec.meta.captions);
+            const blob = new Blob([srt], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `genesis-${rec.id}.srt`;
+            a.click();
+          });
+        });
+        list.querySelectorAll('.vtt-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const rec = recordings.find(r => r.id === btn.dataset.id);
+            if (!rec || !rec.meta.captions) return;
+            const vtt = window.VS.CaptionsProvider.toVTT(rec.meta.captions);
+            const blob = new Blob([vtt], { type: 'text/vtt' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `genesis-${rec.id}.vtt`;
+            a.click();
+          });
+        });
+        list.querySelectorAll('.dup-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            await window.VS.storage.duplicateRecording(btn.dataset.id);
+            await loadRecordings();
+            renderRecordings();
+          });
+        });
+        list.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Delete this recording? This cannot be undone.')) return;
+            await window.VS.storage.deleteRecording(btn.dataset.id);
+            await loadRecordings();
+            renderRecordings();
+          });
+        });
+      }
+
+      function renderEnvironments() {
+        const grid = document.getElementById('envGrid');
+        const all = envProvider.list().filter(e => e.category === 'Custom' && e.type === 'image');
+        const items = applySearchSort(all, e => e.name, () => 0); // custom envs aren't timestamped individually; name/insertion order only
+        libCount.textContent = `${items.length} custom environment${items.length === 1 ? '' : 's'}`;
+
+        if (all.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column:1/-1;">
+              ${window.VS.icon('environments', 32)}
+              <div class="empty-title">No custom environments yet</div>
+              <div class="empty-sub">Upload a background image from Studio → Environment panel, and it'll show up here.</div>
+              <a href="studio.html"><button class="btn primary">Open Studio</button></a>
+            </div>`;
+          return;
+        }
+
+        grid.innerHTML = '';
+        items.forEach(env => {
+          const card = document.createElement('div');
+          card.className = 'project-card';
+          card.innerHTML = `
+            <div class="env-thumb-large" style="${envProvider.getPreviewStyle(env.id)}"></div>
+            <div class="project-meta-row">
+              <div class="project-info">
+                <div class="project-title-row">
+                  <input class="project-title" value="${env.name.replace(/"/g, '&quot;')}" data-id="${env.id}" aria-label="Environment name">
+                </div>
+                <div class="project-sub">Custom image</div>
+              </div>
+              <div class="project-actions">
+                <a href="studio.html?env=${encodeURIComponent(env.id)}"><button class="btn ghost sm" aria-label="Use in studio">${window.VS.icon('studio', 15)}<span>Use</span></button></a>
+                <button class="btn danger sm env-delete-btn" data-id="${env.id}" aria-label="Delete environment">${window.VS.icon('trash', 15)}<span>Delete</span></button>
+              </div>
+            </div>`;
+          grid.appendChild(card);
+        });
+
+        grid.querySelectorAll('.project-title').forEach(input => {
+          input.addEventListener('change', () => {
+            envProvider.renameCustomImage(input.dataset.id, input.value.trim() || input.dataset.id);
+            renderEnvironments();
+          });
+        });
+        grid.querySelectorAll('.env-delete-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!confirm('Delete this custom environment? This cannot be undone.')) return;
+            envProvider.removeCustomImage(btn.dataset.id);
+            renderEnvironments();
+          });
+        });
+      }
+
+      function renderActive() {
+        if (activeTab === 'recordings') renderRecordings(); else renderEnvironments();
+      }
+
+      function switchTab(tab) {
+        activeTab = tab;
+        const isRec = tab === 'recordings';
+        tabRecordings.classList.toggle('active', isRec);
+        tabRecordings.setAttribute('aria-selected', String(isRec));
+        tabEnvironments.classList.toggle('active', !isRec);
+        tabEnvironments.setAttribute('aria-selected', String(!isRec));
+        panelRecordings.hidden = !isRec;
+        panelEnvironments.hidden = isRec;
+        sortSelect.querySelector('option[value="newest"]').disabled = !isRec;
+        sortSelect.querySelector('option[value="oldest"]').disabled = !isRec;
+        if (!isRec) sortSelect.value = 'name';
+        searchInput.value = '';
+        renderActive();
+      }
+
+      tabRecordings.addEventListener('click', () => switchTab('recordings'));
+      tabEnvironments.addEventListener('click', () => switchTab('environments'));
+      tabRecordings.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') { tabEnvironments.focus(); switchTab('environments'); }
+      });
+      tabEnvironments.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') { tabRecordings.focus(); switchTab('recordings'); }
+      });
+      searchInput.addEventListener('input', renderActive);
+      sortSelect.addEventListener('change', renderActive);
+
+      await loadRecordings();
+      renderActive();
+    })();
+  </script>
+</body>
+</html>

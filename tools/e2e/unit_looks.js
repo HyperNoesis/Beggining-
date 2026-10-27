@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');
+const root=path.join(__dirname,'../..');
+const ctx={window:{},document:{readyState:'complete',getElementById:()=>null,addEventListener(){}},localStorage:{}};ctx.window=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'js/looks.js'),'utf8'),ctx);
+const envSrc=fs.readFileSync(path.join(root,'js/providers/environment-provider.js'),'utf8');
+const envIds=[...envSrc.matchAll(/id: '([a-z0-9-]+)', name:/g)].map(m=>m[1]);
+const aspects=['16:9','9:16','1:1','4:5','4:3'],accents=['Blue','Red','Green','Gold','Purple','Black'];let bad=0;
+const t=(n,c)=>{if(!c)bad++;console.log((c?'PASS ':'FAIL ')+n)};
+ctx.VS.LOOKS.forEach(l=>{t(l.name+': env exists ('+l.env+')',envIds.includes(l.env));t(l.name+': aspect valid',aspects.includes(l.aspect));t(l.name+': accent valid',accents.includes(l.gfx.accent));t(l.name+': realism 0..1',l.realism>=0&&l.realism<=1&&l.zoom>=1&&l.zoom<=3)});
+t('5 looks, unique ids',ctx.VS.LOOKS.length===5&&new Set(ctx.VS.LOOKS.map(l=>l.id)).size===5);process.exit(bad?1:0);

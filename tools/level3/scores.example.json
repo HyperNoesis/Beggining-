@@ -1,0 +1,3 @@
+{
+  "EXAMPLE-ONLY-not-real-results": { "identity": 3, "body": 3, "movement": 3, "chairRemoved": 3, "contact": 3, "occlusion": 3, "perspective": 3, "lighting": 3, "stability": 3, "resolution": 3, "latency": 3, "costPerClipUsd": null, "notes": "placeholder to show the format" }
+}

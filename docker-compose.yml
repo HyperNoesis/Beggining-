@@ -1,0 +1,12 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    ports:
+      - "8889:8889"   # WHIP (Genesis publishes here)
+      - "8189:8189/udp" # WebRTC ICE/media
+    environment:
+      - YOUTUBE_STREAM_KEY=${YOUTUBE_STREAM_KEY:-}
+      - TWITCH_STREAM_KEY=${TWITCH_STREAM_KEY:-}
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro

@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "id": "scene-premium-stage",
+  "name": "Keynote Stage",
+  "type": "church stage",
+  "image": "assets/environments/scene-premium-stage.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [],
+  "life": {
+    "amount": 0.3,
+    "parallax": 0.35
+  },
+  "deskLine": {
+    "y": 0.7,
+    "tilt": 0,
+    "bow": 0,
+    "feather": 6
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": 1,
+    "colour": [
+      234,
+      225,
+      225
+    ],
+    "softness": 0.6
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.72,
+    "x": 0.0,
+    "y": 0.0
+  },
+  "reflections": {
+    "desk": 0
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0.0,
+      "y1": 1.0,
+      "blur": 0.2
+    }
+  ],
+  "grade": {
+    "grain": 0.4,
+    "bloom": 0.2,
+    "vignette": 0.2,
+    "dof": 0.25,
+    "colourMatch": 0.5
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true,
+    "inPicture": true
+  },
+  "licence": "AI-generated image supplied by the owner (John), Grok Imagine. Commercial terms NOT recorded: confirm before shipping in a paid library.",
+  "source": "owner chat upload 2026-10-22",
+  "imported": true,
+  "tags": [
+    "stage",
+    "keynote",
+    "no-desk"
+  ],
+  "checked": {
+    "deskConfidence": 1,
+    "pictureOk": false,
+    "importedAt": "2026-10-22"
+  },
+  "depth": "assets/environments/scene-premium-stage-depth.png",
+  "noDesk": true
+}

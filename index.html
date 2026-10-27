@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Genesis</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#08090a">
+<script src="js/config.js"></script>
+  <script src="js/supabase-loader.js"></script>
+<script src="js/providers/auth-provider.js"></script>
+<script src="js/auth.js"></script>
+</head>
+<body style="background:#0c0c0f;">
+<script>
+  // Entry point: route based on whether an account is signed in.
+  window.VS.auth.getCurrentUser().then(user => {
+    window.location.href = user ? 'home.html' : 'landing.html';
+  });
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

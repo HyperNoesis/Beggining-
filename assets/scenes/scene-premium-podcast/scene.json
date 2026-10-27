@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "id": "scene-premium-podcast",
+  "name": "Premium Podcast",
+  "type": "podcast",
+  "image": "assets/environments/scene-premium-podcast.jpg",
+  "size": [
+    1280,
+    720
+  ],
+  "foreground": null,
+  "screens": [],
+  "life": {
+    "amount": 0.3,
+    "parallax": 0.3
+  },
+  "deskLine": {
+    "y": 0.648,
+    "tilt": 0,
+    "bow": 0,
+    "feather": 6
+  },
+  "camera": {
+    "eyeLevel": 0.42,
+    "heightCm": 120,
+    "note": "fixed camera, eye height, slight downward tilt"
+  },
+  "keyLight": {
+    "side": 1,
+    "colour": [
+      244,
+      230,
+      217
+    ],
+    "softness": 0.6
+  },
+  "floorLine": 0.95,
+  "person": {
+    "scale": 0.58,
+    "x": 0,
+    "y": -0.234
+  },
+  "reflections": {
+    "desk": 0.18
+  },
+  "depthLayers": [
+    {
+      "name": "background",
+      "y0": 0,
+      "y1": 0.648,
+      "blur": 0.2
+    },
+    {
+      "name": "desk",
+      "y0": 0.648,
+      "y1": 1,
+      "blur": 0
+    }
+  ],
+  "grade": {
+    "grain": 0.4,
+    "bloom": 0.2,
+    "vignette": 0.2,
+    "dof": 0.5,
+    "occlusion": 0.9,
+    "colourMatch": 0.5
+  },
+  "chair": {
+    "x": 0.5,
+    "empty": true,
+    "inPicture": true
+  },
+  "licence": "AI-generated concept image supplied by the owner (John). Generator + commercial terms NOT recorded: confirm before shipping in a paid library.",
+  "source": "genesis-first-three-scene-assets.zip",
+  "imported": true,
+  "tags": [
+    "podcast",
+    "desk",
+    "fixed-camera",
+    "imported"
+  ],
+  "checked": {
+    "deskConfidence": 1,
+    "pictureOk": false,
+    "importedAt": "2026-10-21"
+  },
+  "depth": "assets/environments/scene-premium-podcast-depth.png"
+}

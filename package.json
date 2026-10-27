@@ -1,0 +1,17 @@
+{
+  "name": "genesis-android",
+  "version": "0.45.0",
+  "private": true,
+  "scripts": {
+    "www": "node scripts/vendor-tasks.js && node scripts/make-www.js",
+    "sync": "npm run www && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "@mediapipe/tasks-vision": "0.10.21"
+  }
+}

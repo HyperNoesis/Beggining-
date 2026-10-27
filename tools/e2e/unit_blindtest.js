@@ -1,0 +1,18 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');const ctx={};ctx.globalThis=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/blindtest.js'),'utf8'),ctx);const BT=ctx.VS.BlindTest;let bad=0;const t=(n,c)=>{if(!c)bad++;console.log((c?'PASS ':'FAIL ')+n)};
+const mk=(name,vSaid,rSaid)=>({name,answers:[].concat(vSaid.map((s,i)=>({itemId:'v'+i,truth:'virtual',said:s})),rSaid.map((s,i)=>({itemId:'r'+i,truth:'real',said:s})))});
+const fooled=(n)=>mk('f'+n,['real','real','real','virtual','real'],['real','real','real','real','real']);
+const sharp=(n)=>mk('s'+n,['virtual','virtual','virtual','virtual','real'],['real','real','real','real','real']);
+t('shuffle is a permutation and reproducible',(()=>{const a=[1,2,3,4,5,6,7,8],x=BT.shuffle(a,5),y=BT.shuffle(a,5);return JSON.stringify(x)===JSON.stringify(y)&&x.slice().sort().join()===a.join()&&JSON.stringify(a)==='[1,2,3,4,5,6,7,8]'})());
+t('different seeds differ',JSON.stringify(BT.shuffle([1,2,3,4,5,6,7,8,9,10],1))!==JSON.stringify(BT.shuffle([1,2,3,4,5,6,7,8,9,10],2)));
+t('viewer called 1 of 5 virtual -> did not notice',BT.viewerStats(fooled(1).answers).didNotNotice===true&&BT.viewerStats(fooled(1).answers).noticeRate===0.2);
+t('viewer called 4 of 5 virtual -> noticed',BT.viewerStats(sharp(1).answers).didNotNotice===false);
+t('exactly 40% counts as not noticing',BT.viewerStats(mk('x',['virtual','virtual','real','real','real'],['real']).answers).didNotNotice===true);
+t('false alarms measured',BT.viewerStats(mk('x',['real'],['virtual','real']).answers).falseAlarm===0.5);
+let v=[];for(let i=0;i<7;i++)v.push(fooled(i));for(let i=0;i<3;i++)v.push(sharp(i));
+let s=BT.summarize(v);t('7 of 10 not noticing = PASS',s.pass&&s.viewers===10&&s.didNotNotice===7);
+v=[];for(let i=0;i<6;i++)v.push(fooled(i));for(let i=0;i<4;i++)v.push(sharp(i));s=BT.summarize(v);t('6 of 10 = not yet',!s.pass&&/NOT YET/.test(s.message));
+s=BT.summarize([fooled(1),fooled(2),fooled(3)]);t('fewer than 10 viewers is never a pass and says so',!s.pass&&!s.enough&&/not a result/.test(s.message));
+t('empty input safe',BT.summarize([]).message==='No finished sessions yet.'&&!BT.summarize([{name:'a',answers:[]}]).pass);
+t('CSV escapes quotes',BT.toCSV([{name:'a"b',answers:[{itemId:'i',truth:'real',said:'virtual'}]}]).includes('"a""b"'));
+process.exit(bad?1:0);

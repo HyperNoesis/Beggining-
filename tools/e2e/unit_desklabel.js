@@ -1,0 +1,11 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');const c={};c.globalThis=c;vm.createContext(c);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js/providers/scene-meta.js'),'utf8'),c);const S=c.VS.SceneMeta;let bad=0;
+const t=(n,x)=>{if(!x)bad++;console.log((x?'PASS ':'FAIL ')+n)};
+t('deskError zero for same line',S.deskError({y:.6,tilt:.02,bow:0},{y:.6,tilt:.02,bow:0}).mean<1e-9);
+t('deskError tilt',Math.abs(S.deskError({y:.6,tilt:0,bow:0},{y:.7,tilt:0,bow:0}).mean-0.1)<1e-9);
+const r=S.summariseDeskLabels([{file:'a',y:.6,tilt:0,bow:0,auto:{y:.61,tilt:0,bow:0,confidence:.9}},{file:'b',y:.6,tilt:0,bow:0,auto:{y:.8,tilt:0,bow:0,confidence:.9}},{file:'c',y:.6,tilt:0,bow:0,auto:{y:.8,tilt:0,bow:0,confidence:.2}},{file:'d',none:true,auto:{y:.7,tilt:0,bow:0,confidence:.9}}]);
+t('good=1 confidentWrong=1 fellBack=1 falseDesk=1',r.good===1&&r.confidentWrong===1&&r.fellBack===1&&r.falseDesk===1);
+t('report text',/Confident but WRONG/.test(S.formatDeskReport(r)));
+t('noDesk scene turns the desk occluder off',S.toEngineState({deskLine:{y:.7},keyLight:{side:1,colour:[255,255,255],softness:.5},person:{scale:.7},noDesk:true}).deskOn===false);
+t('desk scene keeps it on',S.toEngineState({deskLine:{y:.7},keyLight:{side:1,colour:[255,255,255],softness:.5},person:{scale:.7}}).deskOn===true);
+process.exit(bad?1:0);
