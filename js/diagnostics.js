@@ -38,7 +38,7 @@
     const st = (typeof window.VS.diagState === 'function') ? (window.VS.diagState() || {}) : {};
     const out = {
       time: new Date().toISOString(),
-      build: 'genesis v0.47',
+      build: 'genesis v0.48',
       userAgent: navigator.userAgent,
       device: (navigator.userAgentData && navigator.userAgentData.mobile != null ? 'mobile=' + navigator.userAgentData.mobile : '') +
         (navigator.userAgentData && navigator.userAgentData.platform ? ' platform=' + navigator.userAgentData.platform : ''),
@@ -88,6 +88,7 @@
     ].filter(Boolean);
     r.errors.forEach((e) => lines.push('  ' + e));
     try { const fx = window.VS.fxSpeed && window.VS.fxSpeed.last(); if (fx) lines.push(window.VS.fxSpeed.fmt(fx)); else lines.push('Effects speed test: not run yet'); } catch (e) {}
+    try { if (window.__studioCheck && window.VS.studioCheck) lines.push(window.VS.studioCheck.format(window.__studioCheck)); else lines.push('Studio Check: not run yet'); } catch (e) { lines.push('Studio Check: format error'); }
     const T = window.__tuneSummary;
     if (T) {
       lines.push('FULL TEST (' + T.seconds + ' s, battery change ' + T.batteryDropPct + ' pct points):');
@@ -108,11 +109,17 @@
     panel.hidden = true;
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Diagnostics');
-    panel.innerHTML = '<h2>Diagnostics</h2><div class="row"><button type="button" data-a="copy">Copy report</button><button type="button" data-a="tune">Run full test (about 60 s)</button><button type="button" data-a="fx">Test effects speed (about 30 s)</button><button type="button" data-a="close">Close</button></div><pre aria-live="off"></pre><p style="font-family:system-ui,sans-serif;opacity:.7">For the full test: start the camera, stand in good light with your face in frame, tap Run full test and hold still for about a minute. This report stays on your device until you choose to send it. It contains no video or audio.</p>';
+    panel.innerHTML = '<h2>Diagnostics</h2><div class="row"><button type="button" data-a="copy">Copy report</button><button type="button" data-a="check">Studio Check (about 2 min)</button><button type="button" data-a="tune">Run full test (about 60 s)</button><button type="button" data-a="fx">Test effects speed (about 30 s)</button><button type="button" data-a="close">Close</button></div><pre aria-live="off"></pre><p style="font-family:system-ui,sans-serif;opacity:.7">For the full test: start the camera, stand in good light with your face in frame, tap Run full test and hold still for about a minute. This report stays on your device until you choose to send it. It contains no video or audio.</p>';
     pre = panel.querySelector('pre');
     panel.addEventListener('click', async (e) => {
       const a = e.target && e.target.getAttribute && e.target.getAttribute('data-a');
       if (a === 'close') hide();
+      if (a === 'check') {
+        const b = e.target; b.disabled = true;
+        try { await window.VS.studioCheckRun((t) => { b.textContent = t.slice(0, 60); }); b.textContent = 'Studio Check done: press Copy report'; }
+        catch (err) { b.textContent = String(err.message || err).slice(0, 80); }
+        b.disabled = false; refresh();
+      }
       if (a === 'tune') {
         const b = e.target; b.disabled = true;
         try { await window.VS.tune.run((t) => { b.textContent = t.slice(0, 60); window.__tuneProgress = t; }); b.textContent = 'Full test done: press Copy report'; }

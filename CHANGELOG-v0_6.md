@@ -1,3 +1,9 @@
+## v0.48 (Phase 0: Studio Check)
+- NEW `js/studio-check.js` + Diagnostics button "Studio Check (about 2 min)": measures camera controls (min-24fps request, manual exposure 30/20 ms, exposure compensation) with real decoded fps + brightness, restores everything; MODNet speed matrix in workers (WASM vs WebGPU, sizes 256/320/448, fixed shape + graph capture); WebGPU per-operation share; long tasks. Report lines tagged MEASURED / INFERRED. Pauses the live picture while it runs; refuses while recording.
+- BUG FIX: EP list was ['webgpu','wasm'], so ORT could silently run WASM while the app/diagnostics said WebGPU. Now WebGPU is tried alone first (worker and in-page provider). Earlier "WebGPU true" on the phone proved only that navigator.gpu exists.
+- Graph capture needs GPU-buffer input/output (ORT error "External buffer must be provided..."); worker now creates its own device and GPU IO buffers for that path. UNVERIFIED: the sandbox has no WebGPU adapter, so this path has never executed. It is used only inside Studio Check, never in the live loop.
+- Tests: unit_studiocheck 14, t36_studiocheck (real MODNet worker, offline).
+
 # v0.6 changes
 - NEW gl-matte.js: GPU guided upsampling of the model mask against the full-res frame (sharp hair/shoulder edges),
   motion-adaptive temporal smoothing, edge colour cleanup, optional clean-plate assist (fixed camera).

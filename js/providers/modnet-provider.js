@@ -42,6 +42,11 @@ const MODNET_QUALITY = {
 };
 
 class MODNetSegmentationProvider {
+  /** Model input size for a camera size and long edge (multiples of 32). Same rule as _configure. */
+  static sizeFor(vw, vh, longEdge) {
+    const scale = Math.min(1, longEdge / Math.max(vw, vh));
+    return [Math.max(32, Math.round((vw * scale) / 32) * 32), Math.max(32, Math.round((vh * scale) / 32) * 32)];
+  }
   constructor() {
     this.session = null;
     this.label = 'MODNet matting (local, free)';
@@ -130,7 +135,7 @@ class MODNetSegmentationProvider {
         continue;                                  // 404 / HTML fallback page / too slow -> next source
       }
       const isFp16 = /fp16/i.test(url);
-      const attempts = hasWebGPU ? [['webgpu', 'wasm'], ['wasm']] : [['wasm']];
+      const attempts = hasWebGPU ? [['webgpu'], ['wasm']] : [['wasm']];   // webgpu ALONE first so a silent wasm fallback is never mislabelled WebGPU
       for (const eps of attempts) {
         if (isFp16 && eps.length === 1 && eps[0] === 'wasm') continue; // fp16 needs the GPU backend
         try {
@@ -270,17 +275,19 @@ class MODNetWorkerProvider extends MODNetSegmentationProvider {
       try { this._worker.postMessage(Object.assign({ id }, msg), transfer || []); } catch (e) { this._pending.delete(id); reject(e); }
     });
   }
-  async initialize(qualityMode) {
-    this.longEdge = MODNET_QUALITY[qualityMode] || MODNET_QUALITY.balanced;
+  async initialize(qualityMode, opts) {
+    opts = opts || {};
+    if (!(opts.ep && this.longEdge)) this.longEdge = MODNET_QUALITY[qualityMode] || MODNET_QUALITY.balanced;   // experiments pass ep + a preset edge
     const base = new URL('.', document.baseURI).href;
     this._worker = new Worker(new URL('js/providers/modnet-worker.js', base).href);
     this._worker.onmessage = (ev) => { const m = ev.data, p = this._pending.get(m.id); if (!p) return; this._pending.delete(m.id); m.type === 'error' ? p.reject(new Error(m.message)) : p.resolve(m); };
     this._worker.onerror = (ev) => { const err = new Error('MODNet worker crashed: ' + (ev && ev.message || 'unknown')); for (const p of this._pending.values()) p.reject(err); this._pending.clear(); };
-    const r = await this._send({ type: 'init', base, modelUrl: new URL(MODNET_SOURCES[0], base).href, gpu: typeof navigator !== 'undefined' && !!navigator.gpu });
-    this.usingWebGPU = !!r.gpu; this._ready = true;
+    const r = await this._send({ type: 'init', base, modelUrl: new URL(MODNET_SOURCES[0], base).href, gpu: typeof navigator !== 'undefined' && !!navigator.gpu, ep: opts.ep, profile: !!opts.profile, fixed: opts.fixed || null, graphCapture: !!opts.graphCapture });
+    this.usingWebGPU = !!r.gpu; this.initNote = r.note || ''; this._ready = true;
     this.label = 'MODNet matting (background worker, ' + (this.usingWebGPU ? 'WebGPU' : 'WASM') + ')';
     this._mw = 0; this._mh = 0;
   }
+  async profileGet() { const r = await this._send({ type: 'profile-get' }); return r.records || []; }
   async segment(videoElement) {
     const vw = videoElement.videoWidth, vh = videoElement.videoHeight;
     if (!vw || !vh) throw new Error('Video has no dimensions yet');

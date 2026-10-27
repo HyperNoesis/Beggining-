@@ -1121,6 +1121,7 @@
   let droppedFrames = 0, lastRenderMs = null;
   // Measure how fast the camera really delivers frames, independent of our loop (decoded-frame counter, not presentation).
   let tuningNow = false;
+  let checkPaused = false;
   let camRate = 0, camPrevN = 0, camPrevT = 0, runSince = 0;
   setInterval(() => {
     if (!running || !els.video.getVideoPlaybackQuality) { camPrevN = 0; return; }
@@ -1286,6 +1287,20 @@
     } finally { tuningNow = false; }
   }
   window.VS.tune = { run: runFullTest };
+  /** Studio Check (Phase 0): pauses the live picture, measures camera controls + model speed, restores everything. */
+  window.VS.studioCheckRun = async function (progress) {
+    if (!running) throw new Error('Start the camera first, then run Studio Check.');
+    const V = window.VS; checkPaused = true; tuningNow = true;
+    try {
+      const sum = await V.studioCheck.run({
+        video: els.video, track: stream && stream.getVideoTracks()[0], progress,
+        isRecording: () => (recorder && recorder.state !== 'inactive') || liveActive,
+        makeProvider: () => new V.MODNetWorkerProvider(), sizeFor: V.MODNetSegmentationProvider.sizeFor,
+      });
+      window.__studioCheck = sum; try { localStorage.setItem('vs_studio_check', JSON.stringify(sum).slice(0, 20000)); } catch (e) { /* storage optional */ }
+      return sum;
+    } finally { checkPaused = false; tuningNow = false; try { videoNativeW = els.video.videoWidth || videoNativeW; videoNativeH = els.video.videoHeight || videoNativeH; } catch (e) { /* ignore */ } }
+  };
   let batteryRef = null;
   try { if (navigator.getBattery) navigator.getBattery().then((b) => { batteryRef = b; }).catch(() => {}); } catch (e) {}
   setInterval(() => {
@@ -1385,6 +1400,7 @@
   }
   async function processLoop() {
     if (!running) return;
+    if (checkPaused) { scheduleNext(); return; }   // Studio Check owns the CPU/GPU while it measures
     if (!renderHealthy) return; // worker crashed fatally — stop hammering a dead worker; see 'fatal' handler above for why this can't self-recover
     const myLoop = loopToken;
     const frameStart = performance.now();

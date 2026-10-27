@@ -1,3 +1,5 @@
+**v0.48 (Phase 0 done in code):** ask John to install the newest APK, start the camera, open Diagnostics (tap logo 5x), press Studio Check, wait ~2 min, Copy report, paste it. Then Phase 1 uses that report (docs/ARCHITECTURE_BUILD_PLAN.md).
+
 **v0.47:** MODNet runs in a background worker (anti-hang), on top of v0.46. Not yet verified on the phone.
 
 # v0.46 (builds on v0.45): STEP 3 render pipeline (one render in flight; next camera frame is segmented while the previous draws; stats bookkeeping moved into the render promise), recording captures on a fixed clock via captureStream(0)+requestFrame (even cadence even at 10-15 fps render). STEP 4 js/light-meter.js: luma meter every 1.5 s, shows 'Light: dim/ok/bright' in the stats line, sets exposureMode/whiteBalance continuous and nudges exposureCompensation where Android Chrome allows. NOT done: person-only relight/Studio look, MODNet off-thread (still opt-in vs_try_modnet=1). NOT run: any phone, browser e2e (studio.html redirects to auth in the plain smoke test; use tools/e2e harness). Vendoring of Tasks runs in CI via `npm run www`.

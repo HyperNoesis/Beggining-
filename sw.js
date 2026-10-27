@@ -6,7 +6,7 @@
 
 // Bump on every deploy that touches js/*, css/*, or SHELL_ASSETS — this is
 // what forces an already-installed client to drop stale cached files.
-const SHELL_CACHE = 'genesis-shell-v075';
+const SHELL_CACHE = 'genesis-shell-v076';
 const RUNTIME_CACHE = 'genesis-runtime-v10';
 
 const SHELL_ASSETS = [
@@ -23,7 +23,7 @@ const SHELL_ASSETS = [
   'js/providers/auth-provider.js', 'js/providers/captions-provider.js',
   'js/providers/composition-engine.js', 'js/providers/environment-provider.js',
   'js/providers/groq-transcription.js', 'js/providers/lufs-meter.js',
-  'js/providers/mask-refine.js', 'js/loader.js', 'js/ort-loader.js', 'js/providers/modnet-worker.js', 'js/supabase-loader.js', 'js/providers/gl-matte.js', 'js/providers/scene-engine.js', 'js/providers/pose-gate.js', 'js/providers/modnet-provider.js', 'js/providers/realism-engine.js',
+  'js/providers/mask-refine.js', 'js/loader.js', 'js/ort-loader.js', 'js/studio-check.js', 'js/providers/modnet-worker.js', 'js/supabase-loader.js', 'js/providers/gl-matte.js', 'js/providers/scene-engine.js', 'js/providers/pose-gate.js', 'js/providers/modnet-provider.js', 'js/providers/realism-engine.js',
   'js/providers/perf-profile.js', 'js/providers/scene-meta.js', 'js/providers/scene-library.js', 'js/scene-wizard.js', 'js/effects-speed.js', 'desklabel.html', 'js/desklabel.js', 'js/blindtest.js', 'blindtest.html',
   'js/providers/segmentation-provider.js',
   'assets/logo.png', 'assets/logo-mark.png',
