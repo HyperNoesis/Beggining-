@@ -1411,6 +1411,20 @@
       })();
     }
   }
+  // v0.49 Phase 2 pairing audit: which camera frame the mask was computed from vs which frame the person image was copied from.
+  // skew = personFrame - maskFrame (0 = same frame). Cheap (two counters per tick); shown in Diagnostics.
+  const pairLog = [];
+  function camFrames() { try { const q = els.video.getVideoPlaybackQuality && els.video.getVideoPlaybackQuality(); return q ? q.totalVideoFrames : null; } catch (e) { return null; } }
+  function notePair(maskFrame, personFrame) {
+    if (maskFrame == null || personFrame == null) return;
+    pairLog.push(personFrame - maskFrame); if (pairLog.length > 150) pairLog.shift();
+  }
+  window.VS.pairStats = function () {
+    const a = pairLog.slice().sort((x, y) => x - y), n = a.length; if (!n) return null;
+    return { n, mean: +(a.reduce((s, v) => s + v, 0) / n).toFixed(2), max: a[n - 1], p95: a[Math.min(n - 1, Math.floor(n * 0.95))], zeroPct: Math.round(100 * a.filter((v) => v === 0).length / n) };
+  };
+  window.VS.pairReset = function () { pairLog.length = 0; };
+
   async function processLoop() {
     if (!running) return;
     if (checkPaused) { scheduleNext(); return; }   // Studio Check owns the CPU/GPU while it measures
@@ -1423,6 +1437,17 @@
     if (stg.prevStart) stg.period = ema(stg.period, frameStart - stg.prevStart);
     stg.prevStart = frameStart;
 
+    // v0.49 Phase 2: MASK/FRAME PAIRING. The model reads the camera frame the instant segment() is called, but it answers some tens of
+    // milliseconds later. The person image used to be copied from the video AFTER that answer, so it came from a NEWER frame than the mask
+    // (1-2 frames on a phone, more under load): the cut-out lagged behind a moving person = cracks. Now the person copy is started here, in the
+    // same JS turn as the model's read, so both come from the same camera frame. (createImageBitmap(video) snapshots the frame at call time.)
+    const w = outW, h = outH;
+    const crop = compositionEngine.computeFrame(videoNativeW || w, videoNativeH || h, Math.max(w, h));
+    const sampleFrame = camFrames();
+    const personP = createImageBitmap(els.video, crop.sx, crop.sy, crop.sw, crop.sh, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' });
+    personP.catch(() => {});                                   // a failure is handled where it is awaited below; never an unhandled rejection
+    const dropPerson = () => { personP.then((b) => b.close()).catch(() => {}); };   // every early exit must release the copy
+
     // Extra-light (FAST only, auto-engaged by checkGracefulDegrade): once a
     // mask is cached, the model runs on 1 of every `segStride` frames; the
     // frames between reuse that mask against a FRESH camera image, so the
@@ -1430,26 +1455,24 @@
     let runInference = true;
     if (segStride > 1 && cachedMaskBitmap) runInference = (strideTick++ % segStride) === 0;
 
-    let results = null;
+    let results = null, maskFrame = null;
     if (runInference) {
-      const segStart = performance.now();
+      const segStart = performance.now(); maskFrame = camFrames();
       try {
         results = await segProvider.segment(els.video);
       } catch (err) {
+        dropPerson();
         if (myLoop !== loopToken) return; // stopped/restarted while waiting — whoever restarted owns the loop now
         els.statsEl.textContent = 'Segmentation error: ' + err.message;
         scheduleNext();
         return;
       }
-      if (myLoop !== loopToken) return;
+      if (myLoop !== loopToken) { dropPerson(); return; }
       const segMs = performance.now() - segStart;
       if (results && results.segmentationMask) lastMaskSize = (results.segmentationMask.width || '?') + 'x' + (results.segmentationMask.height || '?');
       segMsEma = segMsEma ? segMsEma * 0.8 + segMs * 0.2 : segMs;
       maskWatchdog();
     }
-
-    const w = outW, h = outH;
-    const crop = compositionEngine.computeFrame(videoNativeW || w, videoNativeH || h, Math.max(w, h));
 
     // Which mask image to crop from. Normally the model's own output; in
     // extra-light mode, an ImageBitmap copy that THIS code owns — a skipped
@@ -1461,13 +1484,13 @@
       if (results) {
         try {
           const fresh = await createImageBitmap(results.segmentationMask);
-          if (myLoop !== loopToken) { fresh.close(); return; }
+          if (myLoop !== loopToken) { fresh.close(); dropPerson(); return; }
           if (cachedMaskBitmap) cachedMaskBitmap.close();
           cachedMaskBitmap = fresh;
         } catch (err) { /* keep whatever cached mask we already have */ }
       }
       maskSource = cachedMaskBitmap;
-      if (!maskSource) { scheduleNext(); return; }
+      if (!maskSource) { dropPerson(); scheduleNext(); return; }
     } else {
       maskSource = results.segmentationMask;
     }
@@ -1493,7 +1516,7 @@
       sh: Math.max(1, Math.min(Math.round(crop.sh * ky), mSrcH - mcy)),
     };
     let personBitmap, maskBitmap;
-    const tB0 = performance.now();
+    const tB0 = performance.now(); if (runInference && !noPersonMode) notePair(maskFrame, sampleFrame);
     try {
       [personBitmap, maskBitmap] = await Promise.all([
         // Sourced from the live video element itself, NOT results.image: when
@@ -1501,7 +1524,7 @@
         // is the brightened copy that was fed to the model for a better mask —
         // the person's actual on-screen/recorded appearance should never
         // silently change because the room was dark.
-        createImageBitmap(els.video, crop.sx, crop.sy, crop.sw, crop.sh, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' }),
+        personP,   // v0.49: copied at tick start from the same camera frame the model read (see above)
         noPersonMode
           ? createImageBitmap(passCanvas, { resizeWidth: 64, resizeHeight: 36 })   // fully opaque mask = show the camera as is
           : createImageBitmap(maskSource, mcrop.sx, mcrop.sy, mcrop.sw, mcrop.sh, { resizeWidth: Math.min(w, 640), resizeHeight: Math.max(1, Math.round(h * Math.min(w, 640) / w)), resizeQuality: 'medium' }),
@@ -1510,7 +1533,7 @@
       stg.bmp = ema(stg.bmp, performance.now() - tB0);
     } catch (err) {
       // Never fail silently: a blank preview with no message is the worst outcome.
-      pipeFailCount++;
+      pipeFailCount++; dropPerson();   // release the person copy if only the mask copy failed
       if (pipeFailCount >= 5) els.statsEl.textContent = 'Frame error: ' + (err && err.message ? err.message : err);
       scheduleNext();
       return;
@@ -1745,10 +1768,37 @@
     const fps = parseInt(els.framerateSelect.value, 10) || 30;
     // v0.46 even cadence: capture on a fixed clock (repeating the last frame if a render is late) instead of whenever the
     // canvas happens to change, so a 10-15 fps render still records as a steady 'fps' video without judder.
-    const canvasStream = els.canvas.captureStream(0);
-    const recVT = canvasStream.getVideoTracks()[0];
-    if (recVT && recVT.requestFrame) { clearInterval(window.__recFrameTimer); window.__recFrameTimer = setInterval(() => { try { recVT.requestFrame(); } catch (e) {} }, Math.round(1000 / fps)); }
-    else { canvasStream.getTracks().forEach((t) => t.stop()); }
+    // v0.49 Phase 2 (measured: v0.46's requestFrame() on the live canvas only emitted when the canvas CHANGED, so a 2-15 fps render recorded as a
+    // 2-15 fps file with long gaps). Fix: record from a separate canvas that a drift-corrected clock re-draws from the live canvas on every tick
+    // and then requestFrame()s. A re-draw counts as a change, so a frame is emitted every tick (the last picture repeats while the render is late).
+    // A late tick is skipped, never queued, so there are no bursts. Falls back to the old capture if the live canvas cannot be copied.
+    if (window.__recClockStop) { try { window.__recClockStop(); } catch (e) {} }
+    let canvasStream = null, recVT = null;
+    try {
+      const recCanvas = document.createElement('canvas'); recCanvas.width = els.canvas.width; recCanvas.height = els.canvas.height;
+      const recCtx = recCanvas.getContext('2d', { alpha: false }); recCtx.drawImage(els.canvas, 0, 0);       // throws if this canvas cannot be copied
+      canvasStream = recCanvas.captureStream(0); recVT = canvasStream.getVideoTracks()[0];
+      if (!recVT || !recVT.requestFrame) throw new Error('requestFrame unavailable');
+      const period = 1000 / fps; let nextAt = performance.now() + period, stopped = false, timer = 0;
+      const clk = window.VS.recClock = { fps, ticks: 0, late: 0, maxLateMs: 0, resyncs: 0, copyMs: 0, copyMaxMs: 0, startedAt: performance.now() };   // how late the clock really fires (shown in Diagnostics)
+      const tick = () => {
+        if (stopped) return;
+        const lateBy = performance.now() - nextAt; clk.ticks++; if (lateBy > period) clk.late++; if (lateBy > clk.maxLateMs) clk.maxLateMs = Math.round(lateBy);
+        try {
+          if (recCanvas.width !== els.canvas.width || recCanvas.height !== els.canvas.height) { recCanvas.width = els.canvas.width; recCanvas.height = els.canvas.height; }
+          const c0 = performance.now(); recCtx.drawImage(els.canvas, 0, 0); recVT.requestFrame(); const cm = performance.now() - c0; clk.copyMs = clk.copyMs ? Math.round((clk.copyMs * 0.9 + cm * 0.1) * 10) / 10 : Math.round(cm * 10) / 10; if (cm > clk.copyMaxMs) clk.copyMaxMs = Math.round(cm);
+        } catch (e) { /* skip this tick */ }
+        const now = performance.now(); nextAt += period; if (nextAt < now - period) { nextAt = now; clk.resyncs++; }                // far behind: resync, do not burst
+        timer = setTimeout(tick, Math.max(0, nextAt - now));
+      };
+      timer = setTimeout(tick, period);
+      window.__recClockStop = () => { stopped = true; clearTimeout(timer); window.__recClockStop = null; };
+    } catch (e) {
+      try { if (canvasStream) canvasStream.getTracks().forEach((t) => t.stop()); } catch (e2) {}
+      canvasStream = els.canvas.captureStream(0); recVT = canvasStream.getVideoTracks()[0];                    // v0.46 behaviour
+      if (recVT && recVT.requestFrame) { window.__recClockStop = (function (id) { return () => { clearInterval(id); window.__recClockStop = null; }; })(setInterval(() => { try { recVT.requestFrame(); } catch (e3) {} }, Math.round(1000 / fps))); }
+      else { canvasStream.getTracks().forEach((t) => t.stop()); canvasStream = els.canvas.captureStream(fps); }
+    }
     const audioTrack = outAudioTrack();
     if (audioTrack) canvasStream.addTrack(audioTrack);
 
@@ -1790,7 +1840,7 @@
       }
     };
     recorder.onstop = async () => {
-      clearInterval(window.__recFrameTimer);
+      if (window.__recClockStop) { try { window.__recClockStop(); } catch (e) {} }
       const blob = new Blob(recordedChunks, { type: recType });
       const ts = new Date().toLocaleString();
       const cues = stopCaptionsIfNeeded(); // safe no-op if captions were never started for this session

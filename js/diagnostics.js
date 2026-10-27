@@ -38,7 +38,7 @@
     const st = (typeof window.VS.diagState === 'function') ? (window.VS.diagState() || {}) : {};
     const out = {
       time: new Date().toISOString(),
-      build: 'genesis v0.49',
+      build: 'genesis v0.49 (phase 2)',
       userAgent: navigator.userAgent,
       device: (navigator.userAgentData && navigator.userAgentData.mobile != null ? 'mobile=' + navigator.userAgentData.mobile : '') +
         (navigator.userAgentData && navigator.userAgentData.platform ? ' platform=' + navigator.userAgentData.platform : ''),
@@ -97,6 +97,12 @@
         (cc.rows || []).forEach((x) => lines.push('  tried "' + x.name + '": ' + (x.error ? 'error ' + x.error : 'fps ' + x.fps + ', luma ' + x.luma + (x.why ? ' (' + x.why + ')' : '') + (x.ok ? ' [good]' : ' [rejected]') + (x.got ? ' got ' + JSON.stringify(x.got) : ''))));
       }
     } catch (e) { lines.push('Camera control: format error'); }
+    try {   // v0.49 Phase 2: pairing audit + recording clock (MEASURED on this device)
+      const ps = window.VS.pairStats && window.VS.pairStats();
+      lines.push('Mask/frame pairing (v0.49): ' + (ps ? 'mask frame vs person frame skew over ' + ps.n + ' ticks: mean ' + ps.mean + ', max ' + ps.max + ', exact ' + ps.zeroPct + '% (0 = same camera frame)' : 'no data yet'));
+      const rc = window.VS.recClock;
+      if (rc) lines.push('Recording clock (last/current recording): target ' + rc.fps + ' fps | ticks ' + rc.ticks + ' | late by more than one period ' + rc.late + ' | worst lateness ' + rc.maxLateMs + ' ms | resyncs ' + rc.resyncs + ' | canvas copy+request avg ' + rc.copyMs + ' ms, worst ' + rc.copyMaxMs + ' ms');
+    } catch (e) { lines.push('Pairing/clock: format error'); }
     const T = window.__tuneSummary;
     if (T) {
       lines.push('FULL TEST (' + T.seconds + ' s, battery change ' + T.batteryDropPct + ' pct points):');
